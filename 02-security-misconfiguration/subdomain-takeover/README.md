@@ -1,10 +1,13 @@
 # Subdomain Takeover
 
-> **OWASP Top 10:2025**: A02 – Security Misconfiguration | **CWE**: CWE-284 | **Nguồn**: HackTricks, Bug Bounty Research
+> **CWE**: CWE-284 | **Phân loại**: Security Misconfiguration
 
-## 🧱 Kiến thức Nền tảng
+## Kiến thức Nền tảng
+Hãy tưởng tượng công ty của bạn thuê một gian hàng tại một trung tâm thương mại lớn để trưng bày sản phẩm. Để khách hàng dễ tìm đường, bạn đặt một biển chỉ dẫn lớn ở ngã tư ghi: "Gian hàng Đồ gia dụng của Công ty A: Đi thẳng vào Lô 12 trong trung tâm thương mại". Mọi việc diễn ra rất suôn sẻ. Sau một thời gian, công ty của bạn quyết định đóng cửa gian hàng này và trả lại mặt bằng Lô 12 cho trung tâm thương mại. Thế nhưng, nhân viên của bạn lại quên không đi gỡ bỏ biển chỉ dẫn ở ngã tư. Biển hiệu đó vẫn nằm trơ trọi ở đó, tiếp tục hướng dẫn khách hàng tìm đến Lô 12. 
 
-Hệ thống **DNS (Domain Name System)** cho phép ánh xạ tên miền sang địa chỉ IP hoặc sang một tên miền khác thông qua **bản ghi CNAME** (Canonical Name). Khi tổ chức sử dụng dịch vụ cloud bên thứ ba (AWS S3, Heroku, GitHub Pages, Azure), họ thường tạo CNAME record trỏ subdomain của mình đến endpoint của provider.
+Một kẻ xấu đi ngang qua, nhìn thấy Lô 12 hiện đang trống và biển chỉ dẫn vẫn còn hiệu lực. Hắn lập tức đến gặp ban quản lý trung tâm thương mại, thuê lại đúng Lô 12 này, trang trí nó giống hệt gian hàng cũ của bạn nhưng bên trong lại bán hàng giả, hàng nhái để lừa gạt những vị khách tin cậy đi theo biển chỉ dẫn. 
+
+Trong thế giới mạng, sơ hở này xảy ra với hệ thống **DNS (Domain Name System)**. Các doanh nghiệp thường tạo các bản ghi **CNAME (Canonical Name)** để trỏ tên miền phụ của mình (ví dụ: `docs.company.com`) đến các dịch vụ lưu trữ đám mây bên thứ ba (như AWS S3, GitHub Pages, Heroku, Azure). Khi doanh nghiệp ngừng sử dụng dịch vụ đám mây đó (xóa bucket, xóa ứng dụng) nhưng lại quên xóa bản ghi CNAME tương ứng trong cấu hình DNS của mình, họ đã tạo ra một bản ghi "mồ côi" (dangling CNAME).
 
 ```bash
 # Normal DNS configuration: subdomain points to cloud service
@@ -27,17 +30,10 @@ landing.company.com.    IN  CNAME  company-landing.azurewebsites.net.
 
 Quy trình hoạt động bình thường: DNS CNAME trỏ đến cloud service → cloud service nhận request → trả về nội dung hợp lệ. Tuy nhiên, vấn đề phát sinh khi tổ chức **ngừng sử dụng dịch vụ cloud** (xóa S3 bucket, unprovision Heroku app) nhưng **quên xóa bản ghi CNAME** trong DNS.
 
-## 🔍 Mô tả lỗ hổng
+## Mô tả lỗ hổng
+Lỗ hổng **Chiếm đoạt tên miền phụ** (Subdomain Takeover) xuất hiện chính từ những bản ghi DNS "mồ côi" này. Kẻ tấn công chỉ cần phát hiện ra một tên miền phụ của bạn đang trỏ về một dịch vụ đám mây không còn tồn tại (dangling CNAME). Kẻ tấn công sau đó sẽ đăng ký một tài khoản trên dịch vụ đám mây đó (ví dụ AWS S3 hoặc GitHub) và tạo một tài nguyên mới có tên trùng khớp hoàn toàn với tên hiển thị trong bản ghi CNAME cũ của bạn. Lúc này, bất kỳ ai truy cập vào tên miền phụ chính chủ của bạn đều sẽ được DNS dẫn thẳng đến trang web độc hại do kẻ tấn công kiểm soát. Lỗ hổng này cực kỳ nguy hiểm bởi vì trang web độc hại chạy dưới tên miền chính thức của công ty bạn, giúp kẻ tấn công dễ dàng thực hiện các chiến dịch lừa đảo (phishing), đánh cắp cookie đăng nhập nhạy cảm của người dùng, hoặc lách qua các chính sách bảo mật nghiêm ngặt (như CSP/CORS) để tấn công vào hệ thống ứng dụng chính.
 
-Subdomain Takeover xảy ra khi bản ghi CNAME trỏ đến một dịch vụ **đã bị hủy hoặc không còn tồn tại** (gọi là **dangling CNAME**). Kẻ tấn công có thể **đăng ký lại dịch vụ đó** trên cloud provider với cùng tên, từ đó chiếm quyền kiểm soát nội dung được phục vụ trên subdomain của nạn nhân.
-
-Hậu quả nghiêm trọng:
-- **Phishing**: hiển thị trang giả mạo trên domain hợp lệ của tổ chức
-- **Cookie theft**: nếu cookie được set cho `*.company.com`, attacker có thể đọc cookie từ subdomain bị chiếm
-- **Bypass CSP/CORS**: subdomain bị chiếm có thể nằm trong whitelist của ứng dụng chính
-
-## ⚔️ Cơ chế tấn công
-
+## Cơ chế tấn công
 **Bước 1: Phát hiện dangling CNAME**
 
 ```bash
@@ -89,16 +85,16 @@ aws s3 cp index.html s3://company-docs/ --acl public-read
 # docs.company.com now serves attacker-controlled content!
 ```
 
-## 🛡️ Biện pháp phòng thủ
+## Biện pháp phòng thủ
+- **Tóm tắt**: Phòng chống chiếm đoạt tên miền phụ bằng cách thực hiện vệ sinh DNS định kỳ, tự động hóa việc giám sát các bản ghi DNS rỗng, xác minh quyền sở hữu tên miền phụ và hạn chế phạm vi cookie.
+- **Các bước chi tiết**:
+  - **Vệ sinh DNS (DNS hygiene)**: thiết lập quy trình đánh giá — khi ngừng sử dụng một dịch vụ, hãy xóa bản ghi CNAME liên quan ngay lập tức.
+  - **Giám sát tự động (Automated monitoring)**: sử dụng các công cụ như `subjack`, `nuclei` để quét các bản ghi CNAME trỏ rỗng định kỳ.
+  - **Xác minh quyền sở hữu tên miền (Domain verification)**: sử dụng các tính năng xác minh qua bản ghi TXT được hỗ trợ bởi các nhà cung cấp dịch vụ (như GitHub Pages).
+  - **Bảo vệ tên miền đại diện (Wildcard protection)**: tránh cấu hình DNS đại diện (`*.company.com`) trỏ đến các dịch vụ bên ngoài.
+  - **Phạm vi hoạt động của cookie (Cookie scoping)**: không thiết lập cookie cho toàn bộ tên miền đại diện `*.company.com`, hãy sử dụng tiền tố `__Host-`.
 
-1. **DNS hygiene**: thiết lập quy trình review — khi decommission service, **xóa CNAME record ngay lập tức**
-2. **Monitoring tự động**: sử dụng tool như `subjack`, `nuclei` để scan dangling CNAME định kỳ
-3. **Domain verification**: một số provider (GitHub Pages) hỗ trợ TXT record verification — bật tính năng này
-4. **Wildcard protection**: tránh sử dụng wildcard DNS (`*.company.com`) trỏ đến external service
-5. **Cookie scoping**: không set cookie cho wildcard domain `*.company.com`, sử dụng `__Host-` prefix
-
-## 💻 Code Example
-
+## Code Example
 ```python
 # === DETECTION SCRIPT: Scan for dangling CNAMEs ===
 import dns.resolver
@@ -160,7 +156,20 @@ def check_subdomain(subdomain):
 # }
 ```
 
-## 📚 Nguồn tham khảo
+
+## Xem thêm
+- [Clickjacking](../clickjacking/) — Xem thêm bài học về Clickjacking.
+
+## Nguồn tham khảo
 - HackTricks: https://book.hacktricks.wiki/en/pentesting-web/domain-subdomain-takeover.html
 - Can I Take Over XYZ: https://github.com/EdOverflow/can-i-take-over-xyz
 - CWE-284: https://cwe.mitre.org/data/definitions/284.html
+
+## Giải thích thuật ngữ
+- **DNS (Domain Name System)**: Hệ thống phân giải tên miền, dịch chuyển các tên miền dễ đọc (như google.com) thành các địa chỉ IP của máy chủ.
+- **CNAME Record**: Bản ghi tên miền chính tắc (Canonical Name), dùng để trỏ một tên miền phụ sang một tên miền khác thay vì trỏ trực tiếp đến địa chỉ IP.
+- **Dangling CNAME**: Bản ghi CNAME mồ côi, xảy ra khi bản ghi DNS vẫn trỏ đến một tên miền đích của bên thứ ba nhưng tài nguyên đó đã bị xóa bỏ.
+- **Subdomain Takeover**: Lỗ hổng bảo mật cho phép kẻ tấn công chiếm quyền kiểm soát một tên miền phụ hợp pháp bằng cách đăng ký lại tài nguyên bị bỏ rơi ở dịch vụ đích.
+- **Phishing**: Tấn công lừa đảo người dùng nhằm chiếm đoạt thông tin đăng nhập hoặc dữ liệu nhạy cảm.
+- **Cookie Theft**: Hành vi đánh cắp các tệp cookie lưu trên trình duyệt của người dùng để mạo danh phiên làm việc của họ.
+- **Terraform**: Một công cụ quản lý cơ sở hạ tầng dưới dạng mã nguồn (Infrastructure as Code), giúp tự động hóa việc tạo lập và hủy bỏ các tài nguyên hệ thống (bao gồm cả bản ghi DNS).

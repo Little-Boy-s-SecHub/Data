@@ -1,15 +1,13 @@
 # Credential Stuffing & Brute Force
 
-> **OWASP Top 10:2025**: A07:2025 – Authentication Failures | **CWE**: CWE-307 | **Nguồn**: PortSwigger, OWASP, CWE MITRE
+> **CWE**: CWE-307 | **Phân loại**: Authentication
 
-## 🧱 Kiến thức Nền tảng
+## Kiến thức Nền tảng
+Hãy tưởng tượng một tên trộm đang cố gắng đột nhập vào một ngôi nhà. 
+- Nếu hắn đứng trước cửa, cầm một bộ dụng cụ vạn năng và kiên nhẫn thử hàng nghìn chiếc chìa khóa khác nhau để mở ổ khóa, đó là tấn công dò mật khẩu thủ công (**Brute Force**).
+- Nhưng nếu tên trộm đó lùng sục trên "chợ đen", mua lại một chiếc hộp chứa hàng triệu chiếc chìa khóa thật của những ngôi nhà khác đã từng bị mất trộm, rồi mang chiếc hộp đó đi thử khắp các ngôi nhà trong khu phố với hy vọng chủ nhà lười biếng dùng chung một ổ khóa, đó chính là tấn công chèn thông tin rò rỉ (**Credential Stuffing**).
 
-Credential stuffing và brute force là hai kiểu tấn công nhắm vào hệ thống xác thực bằng cách thử đăng nhập tự động hàng loạt. Sự khác biệt chính:
-
-- **Brute Force**: Thử tất cả tổ hợp mật khẩu có thể (a, b, c... aa, ab...) hoặc từ wordlist phổ biến (dictionary attack).
-- **Credential Stuffing**: Sử dụng danh sách username/password thật đã bị lộ từ các vụ data breach khác, lợi dụng thói quen tái sử dụng mật khẩu (password reuse) của người dùng.
-
-Theo thống kê, khoảng 65% người dùng sử dụng cùng một mật khẩu cho nhiều dịch vụ. Khi một dịch vụ bị breach, toàn bộ tài khoản dùng chung mật khẩu đó đều bị đe dọa.
+Sở dĩ cuộc tấn công này thành công là vì thói quen của con người: khoảng 65% chúng ta sử dụng cùng một tổ hợp tài khoản/mật khẩu cho nhiều trang web khác nhau (như Facebook, Gmail, tài khoản mua sắm). Khi một trang web nhỏ, bảo mật kém bị tin tặc hack và làm lộ cơ sở dữ liệu mật khẩu, tin tặc sẽ lập tức dùng danh sách đó để đi "gõ cửa" các dịch vụ lớn hơn như ngân hàng, ví điện tử hay mạng xã hội.
 
 ```python
 # Normal login endpoint (simplified)
@@ -30,12 +28,12 @@ def login():
 
 Endpoint trên hoạt động đúng cho từng request, nhưng nếu không có cơ chế giới hạn tốc độ (rate limiting), attacker có thể gửi hàng nghìn request mỗi phút để thử tổ hợp credentials.
 
-## 🔍 Mô tả lỗ hổng
+## Mô tả lỗ hổng
+Lỗ hổng này xảy ra khi hệ thống xác thực của trang web quá hiền lành, cho phép bất kỳ ai gửi hàng ngàn yêu cầu đăng nhập liên tục mà không có biện pháp ngăn chặn hay giới hạn tốc độ. 
 
-Lỗ hổng xảy ra khi hệ thống xác thực không giới hạn số lần đăng nhập thất bại, cho phép attacker tự động hóa việc thử hàng triệu tổ hợp username/password. Các biến thể bao gồm: brute force cổ điển, credential stuffing từ database bị lộ, password spraying (thử một mật khẩu phổ biến với nhiều username), và reverse brute force.
+Mối nguy hiểm của lỗ hổng này rất rõ ràng: kẻ tấn công sử dụng các công cụ tự động hóa (scripts) để chạy thử hàng triệu tài khoản bị rò rỉ hoặc thử đoán mật khẩu trong thời gian cực ngắn. Nếu không bị chặn, chúng chắc chắn sẽ tìm ra được những tài khoản sử dụng mật khẩu yếu hoặc tái sử dụng mật khẩu cũ, từ đó chiếm đoạt thông tin cá nhân và tài sản của khách hàng mà không gặp bất kỳ rào cản nào.
 
-## ⚔️ Cơ chế tấn công
-
+## Cơ chế tấn công
 **1. Credential Stuffing với danh sách breach:**
 
 ```python
@@ -101,16 +99,16 @@ for password in common_passwords:
         time.sleep(2)  # Slow down to avoid detection
 ```
 
-## 🛡️ Biện pháp phòng thủ
+## Biện pháp phòng thủ
+- **Tóm tắt**: Chống Credential Stuffing bằng cách triển khai rate limiting, cơ chế khóa tài khoản tạm thời (progressive lockout), CAPTCHA và phát hiện mật khẩu bị rò rỉ.
+- **Các bước chi tiết**:
+  - **Rate limiting**: Giới hạn 5-10 lần thử mỗi IP mỗi phút, sử dụng token bucket hoặc sliding window algorithm.
+  - **Account lockout**: Khóa tạm thời tài khoản sau N lần thất bại (progressive delay: 1 phút → 5 phút → 30 phút).
+  - **CAPTCHA**: Yêu cầu CAPTCHA sau 3 lần thất bại liên tiếp.
+  - **Breach password detection**: Kiểm tra mật khẩu mới đối chiếu với database breach đã biết (HaveIBeenPwned API).
+  - **MFA enforcement**: Bật 2FA giúp credential stuffing trở nên vô hiệu ngay cả khi mật khẩu đúng.
 
-1. **Rate limiting**: Giới hạn 5-10 lần thử mỗi IP mỗi phút, sử dụng token bucket hoặc sliding window algorithm.
-2. **Account lockout**: Khóa tạm thời tài khoản sau N lần thất bại (progressive delay: 1 phút → 5 phút → 30 phút).
-3. **CAPTCHA**: Yêu cầu CAPTCHA sau 3 lần thất bại liên tiếp.
-4. **Breach password detection**: Kiểm tra mật khẩu mới đối chiếu với database breach đã biết (HaveIBeenPwned API).
-5. **MFA enforcement**: Bật 2FA giúp credential stuffing trở nên vô hiệu ngay cả khi mật khẩu đúng.
-
-## 💻 Code Example
-
+## Code Example
 ```python
 # VULNERABLE: no rate limiting, no lockout
 @app.route('/login', methods=['POST'])
@@ -158,7 +156,18 @@ def login_safe():
     return jsonify({"error": "Invalid credentials"}), 401
 ```
 
-## 📚 Nguồn tham khảo
+## Xem thêm
+- [Các bài học liên quan trong cùng thư mục](../)
+
+## Nguồn tham khảo
 - PortSwigger: https://portswigger.net/web-security/authentication/password-based
 - OWASP: https://owasp.org/www-community/attacks/Credential_stuffing
 - CWE: https://cwe.mitre.org/data/definitions/307.html
+
+## Giải thích thuật ngữ
+- **Brute Force (Tấn công vét cạn)**: Phương pháp thử tất cả các chuỗi mật khẩu có thể có cho đến khi tìm được mật khẩu đúng, thường được thực hiện tự động bằng phần mềm.
+- **Credential Stuffing (Nhồi thông tin đăng nhập)**: Kiểu tấn công tự động sử dụng danh sách các cặp tài khoản và mật khẩu bị rò rỉ từ một trang web khác để thử đăng nhập vào trang web mục tiêu.
+- **Password Spraying (Rải mật khẩu)**: Kỹ thuật thử nghiệm một số ít mật khẩu rất phổ biến (như `123456`, `Password123`) trên một danh sách dài các tài khoản người dùng khác nhau để tránh bị khóa tài khoản.
+- **Rate Limiting (Giới hạn lưu lượng)**: Cơ chế kiểm soát và giới hạn số lượng yêu cầu (requests) mà một địa chỉ IP hoặc tài khoản được phép gửi tới máy chủ trong một khoảng thời gian nhất định.
+- **Account Lockout (Khóa tài khoản)**: Cơ chế bảo mật tự động khóa tạm thời hoặc vĩnh viễn tài khoản người dùng sau khi phát hiện một số lần cố gắng đăng nhập sai liên tiếp.
+- **Data Breach (Rò rỉ dữ liệu)**: Sự cố an ninh mạng mà trong đó thông tin nhạy cảm, bí mật hoặc được bảo vệ bị truy cập, xem hoặc sao chép bởi một cá nhân hoặc tổ chức không có thẩm quyền.

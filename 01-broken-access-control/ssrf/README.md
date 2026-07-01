@@ -1,11 +1,13 @@
 # Server-Side Request Forgery
 
-> **OWASP Top 10:2025**: A01:2025 – Broken Access Control | **CWE**: CWE-918 (Server-Side Request Forgery) | **Phân loại**: Request Attacks
+> **CWE**: CWE-918 (Server-Side Request Forgery) | **Phân loại**: Server-Side Request Forgery
 
-## 🧱 Kiến thức Nền tảng
-Yêu cầu giả mạo từ phía máy chủ (Server-Side Request Forgery - SSRF) là lỗ hổng xảy ra khi kẻ tấn công có thể ép máy chủ web thực hiện các yêu cầu HTTP/HTTPS đến các địa chỉ tùy ý. Khái niệm cốt lõi ở đây là **server-side HTTP client** (HTTP client ở phía máy chủ). Nhiều ứng dụng cần tải tài nguyên từ bên ngoài (ví dụ: hiển thị hình thu nhỏ từ link, gọi API bên thứ ba). Khi đó, máy chủ sẽ tự khởi tạo một yêu cầu mạng bằng HTTP client nội bộ của nó.
+## Kiến thức Nền tảng
+Hãy tưởng tượng máy chủ web của bạn giống như một nhân viên hành chính ngồi trong văn phòng bảo mật của một tổng công ty. Văn phòng này nằm bên trong hàng rào bảo mật nghiêm ngặt. Người ngoài không thể tự ý đi vào các phòng ban nội bộ hay xem máy chủ cơ sở dữ liệu của công ty. Tuy nhiên, nhân viên hành chính này có một nhiệm vụ: "Nếu có ai gửi thư yêu cầu tải ảnh hoặc thông tin từ một địa chỉ web bên ngoài để đính kèm vào hồ sơ, nhân viên sẽ tự mình truy cập đường link đó, tải ảnh về và hiển thị lên màn hình".
 
-Mối nguy hiểm xuất hiện khi máy khách cung cấp các URL chứa **loopback/private IP** (IP vòng lặp hoặc IP nội bộ). Các dải địa chỉ IP riêng tư (như `10.0.0.0/8`, `192.168.0.0/16` theo định nghĩa RFC 1918) hoặc loopback (`127.0.0.1` / `localhost`) và IP metadata đám mây (`169.254.169.254`) chỉ được sử dụng cho mạng nội bộ phía sau tường lửa. Vì máy chủ nằm bên trong ranh giới mạng tin cậy này, server-side HTTP client sẽ gửi yêu cầu trực tiếp đến các tài nguyên nội bộ, bypass các hệ thống kiểm soát truy cập vòng ngoài. Kẻ tấn công lợi dụng việc này để quét cổng mạng, truy cập các trang quản trị cục bộ hoặc đánh cắp token metadata nhạy cảm của dịch vụ đám mây.
+Mối nguy hiểm xuất hiện khi một vị khách xấu gửi một yêu cầu có nội dung: "Hãy tải ảnh tại địa chỉ: `http://localhost/admin` hoặc `http://192.168.1.100` (địa chỉ của máy chủ nội bộ)". Vì nhân viên hành chính này đang ngồi *bên trong* mạng nội bộ tin cậy, nên anh ta có thể dễ dàng đi đến các địa chỉ nội hạt này mà không bị tường lửa ngăn chặn (được gọi là bypass tường lửa). Anh ta ngoan ngoãn truy cập vào trang quản trị nội bộ hoặc máy chủ chứa dữ liệu nhạy cảm, lấy thông tin về và gửi ngược lại cho kẻ tấn công bên ngoài. Trong thế giới mạng, hành vi lừa máy chủ thực hiện các yêu cầu nội bộ hoặc tùy ý này được gọi là **SSRF** (Server-Side Request Forgery - Yêu cầu giả mạo từ phía máy chủ).
+
+Mối nguy hiểm này liên quan trực tiếp đến các địa chỉ **loopback/private IP** (IP vòng lặp hoặc IP nội bộ). Các dải địa chỉ IP riêng tư (như `10.0.0.0/8`, `192.168.0.0/16` theo định nghĩa RFC 1918) hoặc loopback (`127.0.0.1` / `localhost`) và IP metadata đám mây (`169.254.169.254`) chỉ được sử dụng cho mạng nội bộ phía sau tường lửa. Vì máy chủ nằm bên trong ranh giới mạng tin cậy này, server-side HTTP client sẽ gửi yêu cầu trực tiếp đến các tài nguyên nội bộ, bypass các hệ thống kiểm soát truy cập vòng ngoài. Kẻ tấn công lợi dụng việc này để quét cổng mạng, truy cập các trang quản trị cục bộ hoặc đánh cắp token metadata nhạy cảm của dịch vụ đám mây.
 
 ```python
 # Safe HTTP client request resolving DNS and validating IP range to prevent SSRF
@@ -51,13 +53,15 @@ def make_safe_request(url):
     return response.data
 ```
 
-## 🔍 Mô tả lỗ hổng
-Server-Side Request Forgery (SSRF) xảy ra khi một máy chủ web thực hiện các yêu cầu HTTP tới các tài nguyên tùy ý dựa trên đầu vào do người dùng kiểm soát mà không được lọc kỹ càng. Lỗ hổng này cho phép kẻ tấn công biến máy chủ thành một proxy để quét mạng nội bộ, truy cập các dịch vụ nhạy cảm đằng sau tường lửa hoặc khai thác các dịch vụ metadata của đám mây.
+## Mô tả lỗ hổng
+Lỗ hổng SSRF xảy ra khi ứng dụng cho phép người dùng truyền vào một địa chỉ URL và máy chủ sẽ tự động gửi yêu cầu đến URL đó mà không có bất kỳ bộ lọc hoặc bước xác thực an toàn nào. 
 
-## ⚔️ Cơ chế tấn công
+Lỗ hổng này cực kỳ nguy hiểm bởi vì nó biến máy chủ của bạn thành một "nội gián" hoặc một cầu nối trung gian (proxy) để kẻ tấn công khám phá và tấn công mạng nội bộ của bạn. Kẻ xấu có thể lợi dụng điều này để quét các cổng mạng đang mở trong hệ thống nội bộ, truy cập các cơ sở dữ liệu không công khai, hoặc nghiêm trọng hơn là đánh cắp mã khóa truy cập (metadata tokens) từ các dịch vụ điện toán đám mây (như AWS, Google Cloud, Azure). Điều này có thể dẫn đến việc kẻ tấn công chiếm toàn quyền kiểm soát toàn bộ cơ sở hạ tầng đám mây của doanh nghiệp.
+
+## Cơ chế tấn công
 Kẻ tấn công tận dụng các chức năng như xem trước liên kết (link preview) bằng cách cung cấp một URL trỏ đến các địa chỉ IP riêng tư nội bộ (như `http://localhost/admin` hoặc `http://192.168.1.1`) hoặc địa chỉ metadata của môi trường đám mây (ví dụ AWS metadata IP: `http://169.254.169.254`). Vì máy chủ nằm bên trong hàng rào bảo mật và có quyền truy cập các tài nguyên nội hạt, nó sẽ gửi yêu cầu và có thể trả lại nội dung nhạy cảm cho kẻ tấn công trong phản hồi hoặc thông báo lỗi.
 
-## 🛡️ Biện pháp phòng thủ
+## Biện pháp phòng thủ
 - **Tóm tắt**: Ngăn chặn SSRF bằng cách sử dụng danh sách trắng (allowlist), phân giải tên miền sang IP và kiểm tra IP riêng tư trước khi gửi yêu cầu, vô hiệu hóa redirect và cô lập mạng của ứng dụng.
 - **Các bước chi tiết**:
   - Triển khai danh sách trắng (allowlist) nghiêm ngặt cho các tên miền/IP đích thay vì sử dụng danh sách đen (blocklist).
@@ -66,7 +70,7 @@ Kẻ tấn công tận dụng các chức năng như xem trước liên kết (l
   - Cô lập máy chủ gửi yêu cầu trong một phân đoạn mạng riêng biệt hoặc VPC với các quy tắc egress tường lửa tối thiểu.
   - Sử dụng một HTTP client chuyên dụng được cấu hình giới hạn thời gian chờ (timeout) ngắn, lượng dữ liệu tối đa nhỏ để ngăn chặn cạn kiệt tài nguyên (DoS).
 
-## 💻 Code Example
+## Code Example
 ```python
 import socket
 import ipaddress
@@ -137,7 +141,18 @@ def secure_request(url, max_bytes=2*1024*1024):
         response.release_conn()
 ```
 
-## 📚 Ghi chú kỹ thuật & Nguồn tham khảo
-- **Trạng thái kiểm định**: FIXED
-- **Ghi chú kỹ thuật**: Bản sửa đổi đã giải quyết lỗi chứng chỉ TLS (SNI/Hostname mismatch) do việc gửi yêu cầu trực tiếp đến địa chỉ IP đã phân giải. Bằng cách sử dụng cơ chế ghim IP kết nối của `urllib3` (`server_hostname` trong pool options) và giữ nguyên Host header để xác thực SSL hoạt động chính xác. Bổ sung kiểm tra giao thức và cổng để ngăn chặn việc bypass.
+## Xem thêm
+- [XML External Entities](../../05-injection/xxe/) — Lỗ hổng XXE có thể được sử dụng để thực hiện các yêu cầu mạng SSRF trực tiếp từ máy chủ phân tích XML.
+
+## Nguồn tham khảo
 - **Nguồn tham khảo**: OWASP SSRF Prevention Cheat Sheet, PortSwigger, CWE-918
+
+## Giải thích thuật ngữ
+- **Server-Side Request Forgery (SSRF)**: Lỗ hổng giả mạo yêu cầu từ phía máy chủ, xảy ra khi ứng dụng gửi một yêu cầu mạng đến một địa chỉ do kẻ tấn công chỉ định.
+- **Server-Side HTTP Client**: Công cụ hoặc thư viện phần mềm chạy trên máy chủ được sử dụng để gửi các yêu cầu HTTP/HTTPS sang các máy chủ khác.
+- **Loopback IP / Localhost**: Địa chỉ IP vòng lặp (thường là `127.0.0.1` hoặc tên miền `localhost`) dùng để máy tính tự kết nối và giao tiếp với chính nó.
+- **Private IP (IP nội bộ)**: Các dải địa chỉ IP (như `192.168.x.x` hoặc `10.x.x.x`) chỉ được sử dụng trong mạng nội bộ phía sau tường lửa và không thể định tuyến trực tiếp từ internet công cộng.
+- **Metadata Service**: Dịch vụ cung cấp thông tin cấu hình và mã khóa truy cập của máy chủ ảo trong môi trường điện toán đám mây (thường nằm ở địa chỉ IP đặc biệt `169.254.169.254`).
+- **DNS Rebinding**: Kỹ thuật tấn công lừa máy chủ gửi yêu cầu đến một địa chỉ IP nội bộ an toàn bằng cách thay đổi địa chỉ IP phân giải của tên miền đích ngay giữa hai lần truy cập liên tiếp.
+- **VPC (Virtual Private Cloud)**: Mạng riêng ảo được cô lập trong môi trường điện toán đám mây để bảo vệ các tài nguyên hệ thống.
+- **Egress Firewall Rules**: Quy tắc tường lửa kiểm soát lưu lượng dữ liệu đi ra ngoài từ hệ thống nội bộ.

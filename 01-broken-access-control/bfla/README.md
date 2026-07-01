@@ -1,10 +1,11 @@
 # Broken Function Level Authorization (BFLA)
 
-> **OWASP Top 10:2025**: A01 – Broken Access Control | **CWE**: CWE-285 | **Nguồn**: OWASP API Top 10 (API5:2023)
+> **CWE**: CWE-285 | **Phân loại**: Access Control
 
-## 🧱 Kiến thức Nền tảng
+## Kiến thức Nền tảng
+Hãy tưởng tượng bạn bước vào một tòa nhà văn phòng hiện đại. Để đi qua cửa chính hay vào phòng làm việc của mình, bạn chỉ cần quẹt chiếc thẻ nhân viên thông thường. Tuy nhiên, để bước vào phòng máy chủ hay phòng nhân sự — nơi chứa những thông tin vô cùng nhạy cảm — bạn cần một chiếc thẻ có đặc quyền cao hơn. Trong thế giới phần mềm, việc kiểm soát xem ai được phép thực hiện hành động nào (như xóa tài khoản, nâng cấp quyền hạn hay xem báo cáo doanh thu) được gọi là **Function Level Authorization** (Kiểm soát quyền truy cập cấp chức năng).
 
-Trong hệ thống phần mềm, **Function Level Authorization** là cơ chế kiểm soát quyền truy cập ở cấp độ chức năng (function/endpoint). Khác với Object Level Authorization (kiểm tra "user có quyền truy cập object này không?"), Function Level Authorization kiểm tra "user có quyền **thực hiện hành động** này không?" — ví dụ: xóa user, thay đổi role, duyệt giao dịch.
+Khác với việc kiểm tra xem bạn có quyền sở hữu hay xem một hồ sơ cụ thể hay không (Object Level Authorization), cơ chế này tập trung vào câu hỏi: "Bạn có quyền thực hiện hành động này hay không?". 
 
 Một hệ thống API điển hình phân tách endpoint theo role:
 
@@ -30,20 +31,18 @@ def admin_required(f):
     return decorated
 ```
 
-Kiến trúc phổ biến sử dụng **middleware** hoặc **decorator** để kiểm tra role trước khi thực thi logic nghiệp vụ. Tuy nhiên, sai lầm thường gặp là developer chỉ ẩn nút/link trên giao diện (client-side) mà quên enforce ở server-side, hoặc chỉ bảo vệ một số endpoint admin mà bỏ sót những endpoint khác.
+Kiến trúc phổ biến sử dụng **middleware** hoặc **decorator** để kiểm tra role trước khi thực thi logic nghiệp vụ. Tuy nhiên, một sai lầm vô cùng phổ biến là lập trình viên chỉ lo "giấu" chiếc nút bấm Admin trên giao diện màn hình của người dùng thông thường (client-side), mà quên mất việc đặt chốt chặn thực sự ở phía máy chủ (server-side), hoặc chỉ bảo vệ một số endpoint admin mà bỏ sót những endpoint khác.
 
-## 🔍 Mô tả lỗ hổng
+## Mô tả lỗ hổng
+Lỗ hổng **BFLA** (Broken Function Level Authorization) xuất hiện chính từ sơ hở đó. Nó giống như việc một tòa nhà chỉ khóa cửa trước nhưng lại để ngỏ cửa sau, hoặc chỉ cần người dùng thông thường tò mò đi vòng ra lối đi riêng là có thể tự do ra vào. Lỗ hổng này cực kỳ nguy hiểm bởi vì kẻ tấn công không cần phải có kỹ năng siêu việt hay công cụ hack phức tạp. Họ chỉ cần đóng vai một vị khách tò mò:
 
-BFLA xảy ra khi một user có quyền thấp (regular user) có thể gọi thành công các **function/endpoint dành cho role cao hơn** (admin, manager). Kẻ tấn công không cần khai thác bug phức tạp — họ chỉ cần:
+- **Thử đoán đường đi mới**: Thay đổi địa chỉ trên trình duyệt từ `/api/users/` thành `/api/admin/users/` xem chuyện gì xảy ra.
+- **Thay đổi cách hành động**: Thay vì chỉ yêu cầu xem thông tin (`GET`), họ thử đổi sang lệnh xóa (`DELETE`) hay chỉnh sửa (`PUT`).
+- **Lén lút gửi thêm thông tin**: Tự ý điền thêm quyền hạn mong muốn như `{"role": "admin"}` vào gói dữ liệu gửi đi.
 
-- **Đoán URL pattern**: thay `/api/users/` thành `/api/admin/users/`
-- **Đổi HTTP method**: chuyển `GET` thành `DELETE` hoặc `PUT`
-- **Thêm parameter**: gửi `{"role": "admin"}` trong request body
+Nếu máy chủ không kiểm tra quyền hạn một cách nghiêm ngặt cho từng hành động này, kẻ tấn công hoàn toàn có thể tự nâng cấp bản thân thành Quản trị viên tối cao, xóa sạch dữ liệu của hệ thống, hoặc thao túng toàn bộ ứng dụng. Điều này đặc biệt dễ xảy ra trong các hệ thống lớn được ghép lại từ nhiều dịch vụ nhỏ (microservices), nơi mà mỗi dịch vụ lại do một nhóm lập trình viên khác nhau phát triển và thiếu đi một quy chuẩn bảo mật thống nhất.
 
-Lỗ hổng này phổ biến trong kiến trúc microservice, nơi mỗi service có thể có cơ chế authorization riêng biệt và không đồng nhất.
-
-## ⚔️ Cơ chế tấn công
-
+## Cơ chế tấn công
 **Pattern 1: URL Path Manipulation**
 
 ```http
@@ -83,16 +82,16 @@ curl -X PUT https://api.target.com/api/v1/users/me \
 # If server doesn't filter writable fields → privilege escalation
 ```
 
-## 🛡️ Biện pháp phòng thủ
+## Biện pháp phòng thủ
+- **Tóm tắt**: Thiết lập kiểm soát quyền truy cập cấp chức năng bằng cách mặc định từ chối mọi truy cập, sử dụng phần mềm trung gia tập trung, tách biệt controller theo vai trò, lọc dữ liệu đầu vào và áp dụng chính sách tại API Gateway.
+- **Các bước chi tiết**:
+  - **Mặc định từ chối (Default deny)**: mặc định từ chối mọi truy cập, chỉ cho phép khi có rule rõ ràng.
+  - **Middleware ủy quyền tập trung (Centralized authorization middleware)**: không để mỗi endpoint tự kiểm tra riêng lẻ.
+  - **Tách biệt controller theo vai trò (Role segregation)**: admin controller và user controller riêng biệt.
+  - **Danh sách trắng các trường ghi (Whitelist writable fields)**: chỉ cho phép update các field được phép, filter `role`, `is_admin` khỏi input.
+  - **Áp dụng tại API Gateway (API Gateway enforcement)**: áp dụng policy tại gateway level trước khi request đến service.
 
-1. **Default deny**: mặc định từ chối mọi truy cập, chỉ cho phép khi có rule rõ ràng
-2. **Centralized authorization middleware**: không để mỗi endpoint tự kiểm tra riêng lẻ
-3. **Tách biệt controller theo role**: admin controller và user controller riêng biệt
-4. **Whitelist writable fields**: chỉ cho phép update các field được phép, filter `role`, `is_admin` khỏi input
-5. **API Gateway enforcement**: áp dụng policy tại gateway level trước khi request đến service
-
-## 💻 Code Example
-
+## Code Example
 ```javascript
 // === VULNERABLE CODE (Express.js) ===
 const express = require('express');
@@ -150,7 +149,21 @@ function authorize(...allowedRoles) {
 }
 ```
 
-## 📚 Nguồn tham khảo
+
+## Xem thêm
+- [Broken Access Control](../broken-access-control/) — Xem thêm bài học về Broken Access Control.
+
+## Nguồn tham khảo
 - OWASP API Top 10: https://owasp.org/API-Security/editions/2023/en/0xa5-broken-function-level-authorization/
 - OWASP Access Control Cheat Sheet: https://cheatsheetseries.owasp.org/cheatsheets/Access_Control_Cheat_Sheet.html
 - CWE-285: https://cwe.mitre.org/data/definitions/285.html
+
+## Giải thích thuật ngữ
+- **Function/Endpoint**: Điểm đầu cuối trong giao diện lập trình ứng dụng (API), là nơi hệ thống tiếp nhận và xử lý các yêu cầu từ phía người dùng gửi lên.
+- **Middleware**: Phần mềm trung gian đóng vai trò như chốt kiểm soát nằm giữa yêu cầu của người dùng và logic xử lý của hệ thống, thường được dùng để xác thực, phân quyền hoặc ghi nhật ký.
+- **Decorator**: Một cú pháp đặc biệt trong lập trình dùng để bao bọc và bổ sung tính năng (như kiểm tra quyền truy cập) cho một hàm mà không cần sửa đổi mã nguồn bên trong hàm đó.
+- **Client-side (Phía máy khách)**: Tất cả những gì hiển thị và chạy trực tiếp trên thiết bị của người dùng, chẳng hạn như trình duyệt web (HTML/CSS/JS) hoặc ứng dụng di động.
+- **Server-side (Phía máy chủ)**: Nơi tiếp nhận yêu cầu từ client, xử lý các logic nghiệp vụ phức tạp, truy vấn cơ sở dữ liệu và gửi kết quả phản hồi lại cho client.
+- **HTTP Method (Phương thức HTTP)**: Các lệnh chuẩn hóa (như GET để lấy dữ liệu, POST để tạo mới, PUT để cập nhật, DELETE để xóa) dùng để chỉ định hành động muốn thực hiện trên tài nguyên web.
+- **Parameter (Tham số)**: Các giá trị dữ liệu được gửi kèm theo yêu cầu (trong URL hoặc thân yêu cầu) để cung cấp thông tin chi tiết cho máy chủ xử lý.
+- **Microservices**: Kiến trúc phần mềm chia nhỏ một ứng dụng lớn thành nhiều dịch vụ độc lập, mỗi dịch vụ đảm nhận một chức năng riêng biệt và giao tiếp với nhau qua mạng.

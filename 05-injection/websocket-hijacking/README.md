@@ -1,12 +1,10 @@
 # Cross-Site WebSocket Hijacking (CSWSH)
 
-> **OWASP Top 10:2025**: A05 – Injection | **CWE**: CWE-1385 | **Nguồn**: PortSwigger, Christian Schneider Research
+> **CWE**: CWE-1385 | **Phân loại**: Client-Side Attacks
 
-## 🧱 Kiến thức Nền tảng
+## Kiến thức Nền tảng
 
-WebSocket là giao thức full-duplex cho phép giao tiếp hai chiều liên tục giữa client và server qua một kết nối TCP duy nhất. Không giống HTTP truyền thống (request-response), WebSocket duy trì kết nối mở để truyền dữ liệu thời gian thực — phổ biến trong chat, trading, dashboard, và gaming.
-
-Quá trình thiết lập WebSocket bắt đầu bằng một **HTTP Upgrade handshake**:
+Bình thường, khi bạn duyệt web, trình duyệt hoạt động theo kiểu hỏi-đáp: bạn gửi một yêu cầu (request), máy chủ trả về một phản hồi (response) rồi kết thúc. Tuy nhiên, với các ứng dụng thời gian thực như nhắn tin (chat) hay bảng giá chứng khoán, cơ chế này quá chậm chạp. Để giải quyết, công nghệ WebSocket ra đời, giúp mở ra một đường ống liên lạc thông suốt hai chiều giữa trình duyệt và máy chủ. Khi bắt đầu thiết lập đường ống này (quá trình handshake), trình duyệt sẽ gửi kèm cookie xác thực của bạn. Điểm đặc biệt là WebSocket không bị ràng buộc bởi Chính sách đồng nguồn gốc (SOP), nghĩa là một trang web lạ cũng có thể gửi yêu cầu mở kết nối WebSocket đến máy chủ của bạn.
 
 ```http
 GET /chat HTTP/1.1
@@ -30,17 +28,11 @@ Sec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=
 
 Khác với AJAX (bị Same-Origin Policy chặn), WebSocket **không bị SOP hạn chế** — trình duyệt cho phép bất kỳ origin nào mở kết nối WebSocket đến bất kỳ server nào. Đây là nguyên nhân gốc rễ của CSWSH.
 
-## 🔍 Mô tả lỗ hổng
+## Mô tả lỗ hổng
 
-Cross-Site WebSocket Hijacking xảy ra khi:
+Lỗ hổng Cross-Site WebSocket Hijacking (hay CSWSH) xảy ra khi máy chủ WebSocket "nhắm mắt" chấp nhận mọi yêu cầu kết nối mà không thèm kiểm tra xem yêu cầu đó đến từ trang web nào (bỏ qua tiêu đề `Origin`), đồng thời chỉ dựa vào cookie tự động gửi kèm để xác thực người dùng. Kẻ tấn công có thể dụ dỗ bạn truy cập vào một trang web độc hại của họ. Trang web này sẽ âm thầm gửi yêu cầu mở kết nối WebSocket tới tài khoản của bạn trên máy chủ đích. Vì trình duyệt tự động đính kèm cookie của bạn, kết nối sẽ được thiết lập thành công dưới danh nghĩa của bạn. Khác với CSRF thông thường chỉ gửi đi một lệnh đơn lẻ, cuộc tấn công này nguy hiểm hơn gấp nhiều lần vì nó mở ra một đường ống hai chiều: kẻ tấn công có thể liên tục gửi lệnh và đọc toàn bộ dữ liệu phản hồi riêng tư của bạn trong thời gian thực.
 
-1. Server WebSocket **không kiểm tra header `Origin`** trong handshake request.
-2. Server dựa vào **cookie để xác thực** mà không có thêm CSRF token.
-3. Kẻ tấn công dụ nạn nhân truy cập trang độc hại → trang đó mở WebSocket đến server mục tiêu → trình duyệt tự gắn cookie session → kẻ tấn công đọc/ghi dữ liệu với quyền của nạn nhân.
-
-Hậu quả tương tự CSRF nhưng **nguy hiểm hơn** vì WebSocket là kênh hai chiều: kẻ tấn công không chỉ gửi lệnh mà còn **nhận dữ liệu phản hồi** — bao gồm tin nhắn riêng tư, dữ liệu tài chính, hoặc thông tin cá nhân.
-
-## ⚔️ Cơ chế tấn công
+## Cơ chế tấn công
 
 **Bước 1 — Kẻ tấn công tạo trang khai thác:**
 
@@ -100,52 +92,15 @@ class ChatConsumer(WebsocketConsumer):
             }))
 ```
 
-## 🛡️ Biện pháp phòng thủ
+## Biện pháp phòng thủ
 
-1. **Kiểm tra Origin header** trong handshake:
-   ```python
-   # SECURE: Validate Origin during WebSocket handshake
-   class ChatConsumer(WebsocketConsumer):
-       ALLOWED_ORIGINS = [
-           "https://app.example.com",
-           "https://www.example.com"
-       ]
-   
-       def connect(self):
-           origin = dict(self.scope["headers"]).get(b"origin", b"").decode()
-           
-           if origin not in self.ALLOWED_ORIGINS:
-               self.close(code=4003)  # Reject unauthorized origin
-               return
-           
-           if self.scope["user"].is_authenticated:
-               self.accept()
-           else:
-               self.close(code=4001)
-   ```
+- **Tóm tắt**: Xác thực tiêu đề Origin trong quá trình bắt tay WebSocket và sử dụng cơ chế xác thực dựa trên token chống CSRF.
+- **Các bước chi tiết**:
+  - Kiểm tra Origin header trong handshake để đảm bảo yêu cầu kết nối đến từ domain được cho phép.
+  - Sử dụng token xác thực ngẫu nhiên, không trùng lặp (CSRF token) được truyền qua handshake hoặc thông điệp đầu tiên.
+  - Triển khai xác thực dựa trên token (Token-based auth) thay vì chỉ tin tưởng vào Cookie.
 
-2. **Sử dụng CSRF token** trong handshake thay vì chỉ dựa vào cookie:
-   ```javascript
-   // SECURE: Include CSRF token in WebSocket URL or first message
-   var csrfToken = document.querySelector('meta[name="csrf-token"]').content;
-   var ws = new WebSocket("wss://app.example.com/chat?csrf=" + csrfToken);
-   ```
-
-3. **Dùng custom authentication** thay vì cookie:
-   ```javascript
-   // SECURE: Authenticate via first message instead of cookies
-   var ws = new WebSocket("wss://app.example.com/chat");
-   ws.onopen = function() {
-     ws.send(JSON.stringify({
-       type: "auth",
-       token: localStorage.getItem("jwt_token")  // Not auto-sent by browser
-     }));
-   };
-   ```
-
-4. **Rate limiting và monitoring** — phát hiện các kết nối WebSocket bất thường từ origin lạ.
-
-## 💻 Code Example
+## Code Example
 
 ```python
 # ❌ VULNERABLE: No origin check, cookie-only auth
@@ -178,8 +133,21 @@ class NotificationConsumer(WebsocketConsumer):
         self.accept()
 ```
 
-## 📚 Nguồn tham khảo
+## Xem thêm
+
+- [PostMessage Exploitation](../postmessage-exploitation/) — Các vấn đề bảo mật Client-Side.
+
+## Nguồn tham khảo
+
 - PortSwigger: https://portswigger.net/web-security/websockets/cross-site-websocket-hijacking
 - OWASP: https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/11-Client-side_Testing/10-Testing_WebSockets
 - CWE: https://cwe.mitre.org/data/definitions/1385.html
 - Christian Schneider: https://www.christian-schneider.net/CrossSiteWebSocketHijacking.html
+
+## Giải thích thuật ngữ
+
+- **WebSocket**: Giao thức hỗ trợ truyền dữ liệu hai chiều (full-duplex) liên tục qua một kết nối TCP duy nhất.
+- **CSWSH (Cross-Site WebSocket Hijacking)**: Tấn công chiếm quyền kết nối WebSocket của người dùng từ một trang web độc hại chéo trang.
+- **Handshake**: Quá trình khởi tạo thiết lập kết nối ban đầu giữa client và server.
+- **Origin Header**: Tiêu đề HTTP tự động điền bởi trình duyệt chỉ ra tên miền gửi yêu cầu.
+- **Full-Duplex**: Chế độ truyền tin hai chiều diễn ra đồng thời cùng lúc.

@@ -1,12 +1,13 @@
 # Race Conditions (TOCTOU)
 
-> **OWASP Top 10:2025**: A06:2025 – Insecure Design | **CWE**: CWE-362 | **Nguồn**: PortSwigger, OWASP, CWE MITRE
+> **CWE**: CWE-362 | **Phân loại**: Insecure Design
 
-## 🧱 Kiến thức Nền tảng
+## Kiến thức Nền tảng
+Hãy tưởng tượng bạn và một người bạn dùng chung một tài khoản ngân hàng chỉ có 1.000.000 đồng. Vào cùng một giây, cả hai người đứng ở hai cây ATM khác nhau và cùng nhấn lệnh rút 1.000.000 đồng. Cây ATM thứ nhất hỏi máy chủ: "Tài khoản này đủ tiền không?" - Máy chủ trả lời: "Có, đủ 1.000.000 đồng". Tuy nhiên, ngay trước khi máy chủ kịp trừ tiền ở cây ATM thứ nhất, cây ATM thứ hai cũng gửi câu hỏi tương tự và máy chủ vẫn trả lời: "Có, đủ 1.000.000 đồng" (vì số dư chưa bị trừ). Kết quả là cả hai cây ATM đều nhả tiền và bạn đã rút được 2.000.000 đồng từ tài khoản chỉ có 1.000.000 đồng. Hiện tượng tranh giành tài nguyên này được gọi là **Điều kiện tranh chấp (Race Condition)**.
 
-Trong lập trình đa luồng (multithreading) và xử lý đồng thời (concurrency), các tiến trình hoặc request có thể truy cập cùng một tài nguyên chia sẻ (shared resource) tại cùng một thời điểm. Hệ điều hành và web server xử lý nhiều request song song để tăng hiệu năng, nhưng điều này tạo ra nguy cơ khi nhiều thao tác đọc-ghi xảy ra đồng thời trên cùng một dữ liệu.
+Trong các hệ thống máy tính hiện đại, để phục vụ hàng ngàn người dùng cùng lúc, máy chủ phải xử lý nhiều yêu cầu song song (đa luồng - **multithreading**). Khi các yêu cầu này cùng đọc và ghi vào một cơ sở dữ liệu chung, nếu không được sắp xếp thứ tự cẩn thận, chúng sẽ đè lên nhau.
 
-**TOCTOU (Time-of-Check to Time-of-Use)** là mô hình kinh điển: hệ thống kiểm tra một điều kiện (check), sau đó thực hiện hành động dựa trên kết quả kiểm tra đó (use). Khoảng thời gian giữa "check" và "use" chính là cửa sổ tấn công (race window) mà attacker có thể khai thác.
+Trường hợp phổ biến nhất là lỗi **TOCTOU (Time-of-Check to Time-of-Use)**. Đây là quy trình hai bước: đầu tiên hệ thống kiểm tra điều kiện (Check), sau đó mới thực hiện hành động dựa trên kết quả đó (Use). Khoảng thời gian trống cực kỳ ngắn giữa hai bước này chính là **cửa sổ tranh chấp (race window)**. Kẻ tấn công sẽ tìm cách chen vào khoảng trống này để thực hiện hành động trước khi hệ thống kịp ghi nhận thay đổi.
 
 Ví dụ quy trình chuyển tiền bình thường:
 
@@ -30,12 +31,14 @@ def transfer(sender_id, receiver_id, amount):
 
 Trong môi trường đơn luồng, đoạn code trên hoạt động đúng. Nhưng khi hai request chuyển tiền được gửi đồng thời, cả hai đều đọc cùng một số dư ban đầu trước khi bất kỳ request nào cập nhật — dẫn đến "double spending".
 
-## 🔍 Mô tả lỗ hổng
+## Mô tả lỗ hổng
+Lỗ hổng Điều kiện tranh chấp (Race Condition) xảy ra khi tính chính xác của chương trình phụ thuộc vào thời gian hoặc thứ tự thực thi của các tiến trình song song. 
 
-Race condition xảy ra khi kết quả của chương trình phụ thuộc vào thứ tự thực thi không xác định của các tiến trình đồng thời. Attacker gửi nhiều request gần như đồng thời để khai thác khoảng trống giữa bước kiểm tra và bước thực thi. Các kịch bản phổ biến bao gồm: rút tiền nhiều lần vượt quá số dư, sử dụng mã giảm giá nhiều lần, bỏ phiếu/like trùng lặp, và đăng ký tài khoản trùng lặp vượt qua kiểm tra unique.
+Kẻ tấn công khai thác lỗ hổng này bằng cách sử dụng các công cụ gửi hàng loạt yêu cầu giống hệt nhau lên máy chủ trong cùng một mili giây. Bằng cách làm ngập máy chủ như vậy, chúng cố tình tạo ra tình huống tranh chấp để vượt qua các bước kiểm tra logic của hệ thống. 
 
-## ⚔️ Cơ chế tấn công
+Mối nguy hiểm của lỗ hổng này là kẻ tấn công có thể thực hiện những hành động bất hợp pháp như rút tiền quá hạn mức (double spending), áp dụng một mã giảm giá nhiều lần để mua hàng miễn phí, bỏ phiếu lặp lại hoặc đăng ký nhiều tài khoản có cùng tên đăng nhập. Lỗi này cực kỳ khó phát hiện nếu chỉ kiểm thử theo cách thông thường từng bước một.
 
+## Cơ chế tấn công
 Attacker sử dụng công cụ gửi nhiều request đồng thời để khai thác race window:
 
 ```python
@@ -66,15 +69,15 @@ asyncio.run(main())
 
 Với Burp Suite, attacker có thể dùng tính năng **"Send group in parallel (last-byte sync)"** trong Repeater để đồng bộ hóa chính xác thời điểm gửi request, tối đa hóa khả năng trúng race window.
 
-## 🛡️ Biện pháp phòng thủ
+## Biện pháp phòng thủ
+- **Tóm tắt**: Phòng chống Race Condition bằng cách sử dụng các thao tác cơ sở dữ liệu nguyên tử (atomic), cơ chế khóa (locking) ở cấp độ DB hoặc khóa phân tán (Redis).
+- **Các bước chi tiết**:
+  - **Database-level locking**: Sử dụng `SELECT ... FOR UPDATE` hoặc optimistic locking với version column để serialize các thao tác trên cùng một bản ghi.
+  - **Atomic operations**: Dùng câu lệnh SQL nguyên tử thay vì đọc-rồi-ghi riêng biệt.
+  - **Distributed locks**: Sử dụng Redis lock hoặc database advisory lock cho hệ thống phân tán.
+  - **Idempotency keys**: Yêu cầu client gửi kèm unique key cho mỗi thao tác, server từ chối các key trùng lặp.
 
-1. **Database-level locking**: Sử dụng `SELECT ... FOR UPDATE` hoặc optimistic locking với version column để serialize các thao tác trên cùng một bản ghi.
-2. **Atomic operations**: Dùng câu lệnh SQL nguyên tử thay vì đọc-rồi-ghi riêng biệt.
-3. **Distributed locks**: Sử dụng Redis lock hoặc database advisory lock cho hệ thống phân tán.
-4. **Idempotency keys**: Yêu cầu client gửi kèm unique key cho mỗi thao tác, server từ chối các key trùng lặp.
-
-## 💻 Code Example
-
+## Code Example
 ```python
 # VULNERABLE: read-then-write without locking
 def redeem_coupon(user_id, coupon_code):
@@ -112,7 +115,18 @@ def redeem_coupon_safe(user_id, coupon_code):
     return {"status": "error", "message": "Invalid or already used coupon"}
 ```
 
-## 📚 Nguồn tham khảo
+## Xem thêm
+- [Business Logic Vulnerabilities](../business-logic-vulnerabilities/) — Lỗ hổng logic nghiệp vụ, nơi Race Conditions thường được sử dụng để phá vỡ các giả định và quy trình nghiệp vụ như mua hàng hoặc thanh toán.
+
+## Nguồn tham khảo
 - PortSwigger: https://portswigger.net/web-security/race-conditions
 - OWASP: https://owasp.org/www-community/vulnerabilities/Race_Condition
 - CWE: https://cwe.mitre.org/data/definitions/362.html
+
+## Giải thích thuật ngữ
+- **Multithreading (Đa luồng)**: Công nghệ cho phép một chương trình máy tính thực hiện đồng thời nhiều luồng công việc khác nhau để tối ưu hóa hiệu suất và tốc độ xử lý.
+- **Concurrency (Xử lý đồng thời)**: Khả năng của hệ thống xử lý nhiều nhiệm vụ hoặc yêu cầu chồng chéo nhau về mặt thời gian, tạo cảm giác chúng đang chạy song song cùng lúc.
+- **Shared Resource (Tài nguyên chia sẻ)**: Bất kỳ biến dữ liệu, tệp tin hoặc vùng bộ nhớ nào mà nhiều tiến trình hoặc luồng xử lý khác nhau đều có quyền truy cập và chỉnh sửa.
+- **TOCTOU (Time-of-Check to Time-of-Use)**: Lớp lỗ hổng bảo mật liên quan đến thời gian, xuất hiện khi có sự chậm trễ giữa thời điểm kiểm tra tính hợp lệ của tài nguyên và thời điểm thực sự sử dụng tài nguyên đó.
+- **Race Window (Cửa sổ tranh chấp)**: Khoảng thời gian nhỏ giữa lúc điều kiện được kiểm tra và lúc hành động được thực hiện, là cơ hội để kẻ tấn công chen vào sửa đổi dữ liệu.
+- **Atomic Operations (Thao tác nguyên tử)**: Các thao tác xử lý dữ liệu được đảm bảo thực hiện một cách trọn vẹn và duy nhất, không thể bị gián đoạn hay xen ngang bởi bất kỳ luồng xử lý nào khác.

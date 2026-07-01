@@ -1,14 +1,10 @@
 # LDAP Injection
 
-> **OWASP Top 10:2025**: A05 – Injection | **CWE**: CWE-90 | **Nguồn**: OWASP WSTG, HackTricks
+> **CWE**: CWE-90 | **Phân loại**: Injection
 
-## 🧱 Kiến thức Nền tảng
+## Kiến thức Nền tảng
 
-LDAP (Lightweight Directory Access Protocol) là giao thức tiêu chuẩn để truy cập và quản lý **directory services** — cơ sở dữ liệu dạng cây lưu trữ thông tin về users, groups, computers trong tổ chức. Các LDAP server phổ biến: **Active Directory** (Microsoft), **OpenLDAP**, **389 Directory Server**.
-
-LDAP được sử dụng rộng rãi trong môi trường doanh nghiệp cho: xác thực tập trung (SSO), quản lý nhân viên, phân quyền truy cập, email directory. Hầu hết các ứng dụng enterprise đều tích hợp LDAP authentication.
-
-LDAP sử dụng **search filters** với cú pháp đặc biệt dựa trên RFC 4515:
+Hãy tưởng tượng LDAP giống như cuốn sổ địa bạ khổng lồ của một tập đoàn lớn, nơi lưu trữ tất cả thông tin về nhân viên, phòng ban, máy tính và quyền truy cập của họ. Để tìm kiếm thông tin trong cuốn sổ này, hệ thống sử dụng các bộ lọc tìm kiếm (search filters) với các ký tự logic đặc biệt như dấu `&` (và), `|` (hoặc), hay `*` (đại diện cho mọi ký tự). Thông thường, khi một nhân viên đăng nhập, ứng dụng sẽ dùng bộ lọc này để đối chiếu tên đăng nhập và mật khẩu xem có trùng khớp với dữ liệu trong sổ hay không.
 
 ```
 # LDAP Filter Syntax - Basic operations
@@ -51,19 +47,11 @@ public boolean authenticate(String username, String password) {
 
 Directory Information Tree (DIT) có cấu trúc phân cấp: `dc=company,dc=com` → `ou=People` → `cn=John Doe`. Mỗi entry có các attributes như `uid`, `cn`, `mail`, `userPassword`, `memberOf`.
 
-## 🔍 Mô tả lỗ hổng
+## Mô tả lỗ hổng
 
-LDAP Injection xảy ra khi ứng dụng xây dựng LDAP filter bằng cách **nối chuỗi trực tiếp** với user input mà không escape các ký tự đặc biệt. Attacker có thể chèn các LDAP meta-characters (`*`, `(`, `)`, `|`, `&`, `!`, `\`) để thay đổi logic của filter.
+Lỗ hổng LDAP Injection xảy ra khi ứng dụng web nối chuỗi trực tiếp tên đăng nhập do người dùng nhập vào câu lệnh truy vấn LDAP mà không hề làm sạch các ký tự đặc biệt. Kẻ tấn công có thể nhập vào những tên đăng nhập kỳ lạ chứa các ký tự như `*` hoặc đóng mở ngoặc đơn để thay đổi hoàn toàn ý nghĩa của câu lệnh tìm kiếm ban đầu. Ví dụ, thay vì kiểm tra đúng mật khẩu, câu lệnh bị biến đổi thành "tìm bất kỳ ai có tên là admin mà không cần quan tâm mật khẩu". Hậu quả là kẻ xấu có thể đăng nhập trái phép vào tài khoản của người khác, truy cập trái phép vào các dữ liệu nhân sự nhạy cảm trong hệ thống, hoặc rò rỉ toàn bộ danh bạ nội bộ của doanh nghiệp.
 
-Các ký tự đặc biệt trong LDAP filter:
-- `*` — wildcard, match mọi giá trị
-- `(` và `)` — phân tách filter expressions
-- `|` — OR operator
-- `&` — AND operator
-- `!` — NOT operator
-- `\` — escape character
-
-## ⚔️ Cơ chế tấn công
+## Cơ chế tấn công
 
 ### 1. Authentication Bypass
 
@@ -150,16 +138,18 @@ Password: anything
 # Returns ALL entries in the directory tree
 ```
 
-## 🛡️ Biện pháp phòng thủ
+## Biện pháp phòng thủ
 
-1. **Escape LDAP special characters**: Thay thế `*`, `(`, `)`, `\`, `NUL` bằng escaped form (`\2a`, `\28`, `\29`, `\5c`, `\00`).
-2. **Dùng parameterized LDAP queries**: Sử dụng framework LDAP API với bind parameters.
-3. **Input validation**: Chỉ cho phép alphanumeric characters cho username/password fields.
-4. **Bind authentication**: Xác thực bằng LDAP bind thay vì so sánh password trong filter.
-5. **Least privilege**: LDAP service account chỉ có quyền đọc các attributes cần thiết.
-6. **Rate limiting và account lockout**: Ngăn chặn enumeration attacks.
+- **Tóm tắt**: Mã hóa các ký tự đặc biệt trong bộ lọc LDAP và sử dụng các câu lệnh truy vấn có tham số hóa.
+- **Các bước chi tiết**:
+  - Escape LDAP special characters: Thay thế `*`, `(`, `)`, `\`, `NUL` bằng escaped form (`\2a`, `\28`, `\29`, `\5c`, `\00`).
+  - Dùng parameterized LDAP queries: Sử dụng framework LDAP API với bind parameters.
+  - Input validation: Chỉ cho phép alphanumeric characters cho username/password fields.
+  - Bind authentication: Xác thực bằng LDAP bind thay vì so sánh password trong filter.
+  - Least privilege: LDAP service account chỉ có quyền đọc các attributes cần thiết.
+  - Rate limiting và account lockout: Ngăn chặn các cuộc tấn công dò quét tự động.
 
-## 💻 Code Example
+## Code Example
 
 ```java
 // ❌ VULNERABLE: String concatenation in LDAP filter
@@ -223,8 +213,21 @@ public static String escapeLdapFilter(String input) {
 }
 ```
 
-## 📚 Nguồn tham khảo
+## Xem thêm
+
+- [SQL Injection](../sql-injection/) — Lỗ hổng chèn câu lệnh truy vấn cơ sở dữ liệu.
+
+## Nguồn tham khảo
+
 - OWASP WSTG – LDAP Injection: https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/06-Testing_for_LDAP_Injection
 - HackTricks – LDAP Injection: https://book.hacktricks.wiki/en/pentesting-web/ldap-injection.html
 - CWE-90: https://cwe.mitre.org/data/definitions/90.html
 - RFC 4515 – LDAP Search Filters: https://datatracker.ietf.org/doc/html/rfc4515
+
+## Giải thích thuật ngữ
+
+- **LDAP**: Giao thức truy cập thư mục hạng nhẹ dùng để quản lý thông tin nhân viên, tài nguyên doanh nghiệp.
+- **LDAP Injection**: Chèn câu lệnh LDAP trái phép để thay đổi logic tìm kiếm thư mục.
+- **Search Filter**: Chuỗi ký tự định nghĩa quy luật tìm kiếm trong cơ sở dữ liệu LDAP.
+- **Wildcard**: Ký tự đại diện (thường là `*`) khớp với mọi chuỗi ký tự.
+- **DN (Distinguished Name)**: Tên gọi duy nhất đại diện cho một bản ghi trong sơ đồ cây LDAP.

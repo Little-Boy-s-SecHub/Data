@@ -1,17 +1,13 @@
 # Shadow APIs & Improper Inventory Management
 
-> **OWASP**: API Security (API9:2023) | **CWE**: CWE-1059 | **Nguồn**: OWASP API Security Top 10, Salt Security
+> **CWE**: CWE-1059 | **Phân loại**: API Security
 
-## 🧱 Kiến thức Nền tảng
+## Kiến thức Nền tảng
+Hãy tưởng tượng bạn là chủ một tòa lâu đài cổ kính nguy nga. Để đảm bảo an toàn, bạn lắp đặt hệ thống cửa khóa thông minh, tường lửa và camera giám sát nghiêm ngặt ở cửa chính (phiên bản API hiện tại - `/api/v2`). Bạn đinh ninh rằng lâu đài của mình tuyệt đối an toàn.
+Thế nhưng, bạn không hề biết rằng trong quá trình xây dựng lâu đài trước đây, những người thợ đã tạo ra các lối đi phụ để vận chuyển vật liệu (Debug endpoints `/api/debug/`), hoặc quên khóa các cánh cửa cũ ở tầng hầm khi xây cửa mới (phiên bản cũ `/api/v1`). Những cánh cửa, lối đi phụ này vẫn đang tồn tại, hoàn toàn không được lắp khóa mới, không có camera giám sát và không ai thèm quản lý. Trong thế giới an ninh mạng, những lối đi vô hình này được gọi là **Shadow APIs (API Bóng tối)**.
 
-Trong vòng đời phát triển API, các endpoint được tạo ra, cập nhật, và thay thế liên tục. **Shadow APIs** (API bóng) là những endpoint tồn tại trên production nhưng **không được ghi nhận, giám sát, hoặc bảo trì** — thường do:
-
-- **API versioning không quản lý**: `/api/v1/users` bị deprecated nhưng vẫn chạy khi `/api/v2/users` đã thay thế
-- **Debug/test endpoints** quên xóa: `/api/debug/dump`, `/api/test/reset-password`
-- **Mobile-specific APIs** không được document: endpoints chỉ dùng cho mobile app nhưng vẫn truy cập được qua web
-- **Internal APIs** vô tình expose ra internet: admin APIs, microservice-to-microservice endpoints
-
-**API Inventory** (kiểm kê API) là quá trình liệt kê, phân loại, và giám sát tất cả API endpoints đang hoạt động. Khi inventory không đầy đủ, shadow APIs trở thành lỗ hổng "vô hình" — không được patch, không có rate limit, không có authentication.
+Để quản lý lâu đài, bạn cần một bản đồ chi tiết ghi nhận mọi ngóc ngách, mọi cánh cửa đang hoạt động. Bản đồ này chính là **Kiểm kê API (API Inventory)**.
+Nếu bản đồ kiểm kê của bạn bị thiếu sót, những cánh cửa bóng tối (shadow APIs) kia sẽ trở thành những lỗ hổng "vô hình". Chúng vẫn âm thầm chạy trên hệ thống thực tế nhưng không bao giờ được vá lỗi, không được giới hạn lượt ra vào và không yêu cầu bất kỳ chìa khóa bảo mật nào.
 
 ```yaml
 # Example: API inventory document (OpenAPI spec)
@@ -52,20 +48,16 @@ paths:
                     └─────────────────────────────────┘
 ```
 
-## 🔍 Mô tả lỗ hổng
+## Mô tả lỗ hổng
+Lỗ hổng **Improper Inventory Management (Quản lý kiểm kê không đúng cách)** thực chất là căn bệnh "mất dấu" tài sản của chính mình. Khi doanh nghiệp không biết rõ mình đang có bao nhiêu đường dẫn API đang mở ra internet, họ sẽ để lộ ra những lỗ hổng cực kỳ nguy hiểm.
 
-**API9:2023 — Improper Inventory Management** mô tả tình trạng thiếu visibility về toàn bộ API surface. Các shadow APIs thường có những đặc điểm nguy hiểm:
+Kẻ tấn công luôn thích săn tìm những cánh cửa bóng tối này vì chúng thường:
+- Hoàn toàn không yêu cầu đăng nhập (thiếu authentication/authorization) do dùng mã nguồn cũ từ nhiều năm trước.
+- Không có hệ thống giới hạn lưu lượng (rate limiting), cho phép kẻ tấn công thoải mái dò quét thông tin.
+- Sử dụng các thư viện lập trình lỗi thời, chứa đầy các lỗ hổng đã được công bố công khai mà không ai cập nhật.
+- Không hề ghi lại nhật ký hoạt động (monitoring), khiến kẻ tấn công có thể ra vào lấy cắp dữ liệu như chốn không người mà hệ thống không hề hay biết.
 
-- **Thiếu authentication/authorization**: version cũ chưa có security middleware
-- **Thiếu rate limiting**: không được bảo vệ bởi API gateway
-- **Thiếu input validation**: code cũ không có sanitization hiện đại
-- **Thiếu monitoring**: không có log, không phát hiện được tấn công
-- **Chứa vulnerability đã biết**: dependency cũ không được cập nhật
-
-Kẻ tấn công chủ động tìm shadow APIs vì chúng là "cửa sau" dễ khai thác nhất.
-
-## ⚔️ Cơ chế tấn công
-
+## Cơ chế tấn công
 **1. API Version Discovery — Tìm phiên bản cũ:**
 
 ```python
@@ -141,6 +133,23 @@ curl https://api.target.com/mobile/v1/user/full-profile \
 # Returns full user profile including fields not exposed in web API!
 ```
 
+### Tại sao mobile API endpoint đặc biệt nguy hiểm:
+```
+# Tại sao mobile API endpoint đặc biệt nguy hiểm?
+#
+# Web app: Code chạy trên server → attacker không thấy business logic
+# Mobile app: Code được đóng gói trong APK → attacker có thể decompile
+#
+# Trong APK thường chứa:
+# - Hardcoded API endpoint URLs (kể cả endpoint nội bộ/deprecated)
+# - API keys và secrets được nhúng vào code
+# - Business logic để validate dữ liệu phía client
+#
+# → Shadow API trong mobile thường không đi qua API Gateway
+# → Không có rate limiting, không có auth middleware
+# → Attacker có thể gọi trực tiếp mà không bị WAF chặn
+```
+
 **4. Debug endpoint exploitation:**
 
 ```http
@@ -158,10 +167,7 @@ GET /openapi.yaml HTTP/1.1
 GET /.well-known/openapi.yaml HTTP/1.1
 ```
 
-## 🛡️ Biện pháp phòng thủ
-
-1. **Maintain API inventory** — sử dụng API Gateway làm single entry point:
-
+## Biện pháp phòng thủ
 ```yaml
 # API Gateway configuration — ONLY listed routes are accessible
 # All unlisted routes return 404
@@ -173,11 +179,9 @@ metadata:
     nginx.ingress.kubernetes.io/use-regex: "true"
 spec:
   rules:
-    - host: api.target.com
       http:
         paths:
           # ONLY v2 endpoints are exposed — v1 is completely blocked
-          - path: /api/v2/.*
             pathType: ImplementationSpecific
             backend:
               service:
@@ -186,19 +190,14 @@ spec:
                   number: 8080
           # Everything else → 404 (including /api/v1/*, /debug/*, /internal/*)
 ```
-
-2. **Tự động decommission API versions cũ:**
-
 ```python
 # Deprecation middleware — warn then block old API versions
 from datetime import datetime
 from flask import request, jsonify
-
 DEPRECATED_VERSIONS = {
     "v1": {"sunset": "2024-06-01", "blocked": True},
     "v2": {"sunset": "2025-12-01", "blocked": False},
 }
-
 @app.before_request
 def check_api_version():
     """Block deprecated API versions, warn about upcoming deprecation"""
@@ -216,20 +215,22 @@ def check_api_version():
                 response = None  # Let request proceed
                 # After response, add Sunset header
 ```
-
-3. **Quét định kỳ** để phát hiện shadow APIs:
-
 ```bash
 # Use nuclei or custom scripts to detect undocumented endpoints
 nuclei -u https://api.target.com -t exposures/ -t misconfiguration/
 ```
 
-4. **CI/CD pipeline** tự động xóa debug endpoints khi deploy lên production.
+- **Tóm tắt**: Quản lý API an toàn bằng cách duy trì danh mục API tự động (API inventory), decommission các phiên bản cũ và triển khai API gateway làm điểm truy cập duy nhất.
+- **Các bước chi tiết**:
+  - **Maintain API inventory** — sử dụng API Gateway làm single entry point:
+  - host: api.target.com
+  - path: /api/v2/.*
+  - **Tự động decommission API versions cũ:**
+  - **Quét định kỳ** để phát hiện shadow APIs:
+  - **CI/CD pipeline** tự động xóa debug endpoints khi deploy lên production.
+  - **API documentation as code** — OpenAPI spec phải khớp 100% với code thực tế.
 
-5. **API documentation as code** — OpenAPI spec phải khớp 100% với code thực tế.
-
-## 💻 Code Example
-
+## Code Example
 ```python
 # === VULNERABLE: Multiple API versions running without inventory ===
 # app_v1.py — deployed 2020, forgotten, still running
@@ -278,8 +279,21 @@ def enforce_registry():
         return jsonify({"error": "Endpoint not found"}), 404
 ```
 
-## 📚 Nguồn tham khảo
+## Xem thêm
+- [Các bài học liên quan trong cùng thư mục](../)
+
+## Nguồn tham khảo
 - OWASP: https://owasp.org/API-Security/editions/2023/en/0xa9-improper-inventory-management/
 - PortSwigger: https://portswigger.net/web-security/api-testing
 - CWE: https://cwe.mitre.org/data/definitions/1059.html
 - Salt Security: https://salt.security/blog/what-are-shadow-apis
+
+## Giải thích thuật ngữ
+- **Shadow API**: Các cổng kết nối API đang hoạt động trên hệ thống thực tế nhưng không được tài liệu hóa, quản lý hay bảo trì bởi đội ngũ phát triển.
+- **API Inventory (Kiểm kê API)**: Danh sách đầy đủ, chi tiết mô tả cấu trúc, phiên bản và mục đích của toàn bộ các API đang chạy trong hệ thống.
+- **Deprecated (Ngừng hỗ trợ)**: Trạng thái của một tính năng hoặc phiên bản phần mềm cũ bị khuyến cáo không nên sử dụng nữa và sẽ bị loại bỏ hoàn toàn trong tương lai.
+- **Endpoint**: Điểm cuối (địa chỉ URL cụ thể) của một API mà client có thể kết nối đến để gửi/nhận dữ liệu.
+- **Expose (Lộ lọt)**: Hành vi vô tình hoặc cố ý để lộ thông tin, dữ liệu hoặc dịch vụ nội bộ ra bên ngoài internet.
+- **API Gateway**: Cửa ngõ quản lý tập trung toàn bộ các yêu cầu gửi đến API, chịu trách nhiệm xác thực, định tuyến và giới hạn lưu lượng.
+- **Nuclei**: Công cụ quét và phát hiện lỗ hổng bảo mật tự động dựa trên các mẫu cấu hình có sẵn (templates).
+- **Decommission**: Quá trình chính thức ngừng hoạt động, tắt bỏ và thu hồi tài nguyên của một dịch vụ phần mềm cũ.

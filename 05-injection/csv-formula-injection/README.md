@@ -1,12 +1,10 @@
 # CSV/Formula Injection
 
-> **OWASP Top 10:2025**: A05 – Injection | **CWE**: CWE-1236 | **Nguồn**: OWASP, James Kettle Research
+> **CWE**: CWE-1236 | **Phân loại**: Injection
 
-## 🧱 Kiến thức Nền tảng
+## Kiến thức Nền tảng
 
-Khi ứng dụng web cho phép xuất dữ liệu ra file CSV (Comma-Separated Values), file này thường được mở bằng Microsoft Excel, Google Sheets, hoặc LibreOffice Calc. Các phần mềm bảng tính này **tự động phân tích nội dung ô** — nếu giá trị bắt đầu bằng các ký tự đặc biệt như `=`, `+`, `-`, `@`, `\t`, `\r`, phần mềm sẽ hiểu đó là **công thức** (formula) và thực thi nó.
-
-Quy trình xuất CSV thông thường:
+Hãy nghĩ về file CSV giống như một danh sách văn bản đơn giản được ngăn cách bởi các dấu phẩy. Khi bạn mở file này bằng các công cụ bảng tính như Microsoft Excel hay Google Sheets, các phần mềm này rất thông minh: nếu thấy một ô dữ liệu bắt đầu bằng các ký tự như `=`, `+`, `-`, hoặc `@`, chúng sẽ tự động hiểu đó là một công thức toán học cần được tính toán ngay lập tức. Bên cạnh các phép tính thông thường, các phần mềm này còn hỗ trợ một tính năng cũ nhưng mạnh mẽ gọi là DDE (Dynamic Data Exchange) để trò chuyện và chạy các chương trình khác trên máy tính của bạn.
 
 ```python
 # Normal CSV export in a Python web application
@@ -33,17 +31,11 @@ def export_users(users):
 
 Ngoài công thức Excel cơ bản (`=SUM`, `=VLOOKUP`), Excel còn hỗ trợ **DDE (Dynamic Data Exchange)** — một giao thức cũ cho phép gọi chương trình bên ngoài. Kết hợp với khả năng thực thi formula, đây là vector tấn công nguy hiểm: kẻ tấn công nhập dữ liệu chứa payload vào ứng dụng, và khi admin xuất CSV rồi mở bằng Excel, payload sẽ chạy.
 
-## 🔍 Mô tả lỗ hổng
+## Mô tả lỗ hổng
 
-CSV/Formula Injection (còn gọi là **CSV Injection** hoặc **Formula Injection**) xảy ra khi:
+Lỗ hổng CSV/Formula Injection xảy ra khi ứng dụng web cho phép người dùng nhập thông tin (như tên đăng ký hoặc bình luận) chứa các ký tự công thức nói trên, rồi sau đó xuất danh sách này ra file CSV cho người quản lý tải về. Khi người quản lý mở file CSV bằng Excel, phần mềm sẽ "ngây thơ" thực thi công thức độc hại ẩn giấu trong dữ liệu đó. Kẻ tấn công có thể lợi dụng điều này để chạy các lệnh phá hoại trực tiếp trên máy tính của người mở file, đánh cắp dữ liệu từ các ô khác trong bảng tính, hoặc âm thầm gửi thông tin mật ra ngoài internet. Sự nguy hiểm của lỗ hổng này nằm ở chỗ nó bắc cầu từ một lỗi bảo mật web đơn giản sang việc tấn công trực tiếp vào thiết bị cá nhân của người dùng.
 
-1. Ứng dụng cho phép người dùng **nhập dữ liệu** (đăng ký tên, bình luận, địa chỉ...).
-2. Dữ liệu đó được **xuất ra CSV** mà không lọc các ký tự nguy hiểm.
-3. Người quản trị hoặc người dùng khác **mở file CSV** bằng phần mềm bảng tính.
-
-Hậu quả: thực thi lệnh hệ thống trên máy nạn nhân, đánh cắp dữ liệu từ spreadsheet, hoặc gửi dữ liệu đến server của kẻ tấn công.
-
-## ⚔️ Cơ chế tấn công
+## Cơ chế tấn công
 
 **Payload 1 — Đánh cắp dữ liệu qua HYPERLINK:**
 
@@ -86,48 +78,15 @@ Khi admin export danh sách user ra CSV và mở bằng Excel → Excel thực t
 %0A=cmd|'/C calc'!A0
 ```
 
-## 🛡️ Biện pháp phòng thủ
+## Biện pháp phòng thủ
 
-1. **Thêm tiền tố `'` (single quote)** trước các giá trị nguy hiểm — Excel sẽ hiểu là text thuần:
-   ```python
-   # SECURE: Prefix dangerous characters with single quote
-   DANGEROUS_CHARS = ('=', '+', '-', '@', '\t', '\r', '\n')
-   
-   def sanitize_csv_value(value):
-       """Prevent formula injection in CSV exports"""
-       value = str(value)
-       if value.startswith(DANGEROUS_CHARS):
-           return "'" + value  # Excel treats as plain text
-       return value
-   ```
+- **Tóm tắt**: Làm sạch dữ liệu đầu vào trước khi xuất file CSV bằng cách thêm tiền tố an toàn vào các ký tự đặc biệt.
+- **Các bước chi tiết**:
+  - Thêm tiền tố `'` (single quote) trước các giá trị nguy hiểm — Excel sẽ hiểu là text thuần.
+  - Validate đầu vào nghiêm ngặt, cấm hoặc loại bỏ các ký tự khởi đầu công thức (`=`, `+`, `-`, `@`).
+  - Sử dụng các thư viện xuất CSV có tính năng bảo mật hoặc tự động escape dữ liệu.
 
-2. **Escape toàn bộ bằng tab prefix** (phương pháp mạnh hơn):
-   ```python
-   # SECURE: Prepend tab character to neutralize formulas
-   def sanitize_csv_field(value):
-       value = str(value)
-       if value and value[0] in "=+-@\t\r":
-           return "\t" + value  # Tab prefix prevents execution
-       return value
-   ```
-
-3. **Validate input đầu vào** — từ chối hoặc encode các ký tự công thức ngay khi người dùng nhập:
-   ```python
-   # SECURE: Input validation at data entry point
-   import re
-   
-   def validate_user_input(field_name, value):
-       # Reject values starting with formula characters
-       if re.match(r'^[=+\-@\t\r]', value):
-           raise ValidationError(
-               f"{field_name} cannot start with special characters: = + - @ "
-           )
-       return value
-   ```
-
-4. **Sử dụng định dạng XLSX** với thư viện chuyên dụng (openpyxl) thay vì CSV thuần — có thể đặt cell format là Text.
-
-## 💻 Code Example
+## Code Example
 
 ```python
 # ❌ VULNERABLE: Direct CSV export without sanitization
@@ -162,8 +121,21 @@ def export_users():
     return Response(output.getvalue(), mimetype="text/csv")
 ```
 
-## 📚 Nguồn tham khảo
+## Xem thêm
+
+- [Command Execution](../command-execution/) — Thực thi lệnh trực tiếp trên hệ điều hành.
+
+## Nguồn tham khảo
+
 - PortSwigger: https://portswigger.net/daily-swig/csv-injection
 - OWASP: https://owasp.org/www-community/attacks/CSV_Injection
 - CWE: https://cwe.mitre.org/data/definitions/1236.html
 - James Kettle: https://www.contextis.com/en/blog/comma-separated-vulnerabilities
+
+## Giải thích thuật ngữ
+
+- **CSV Injection**: Tiêm công thức độc hại vào dữ liệu xuất file CSV.
+- **DDE (Dynamic Data Exchange)**: Giao thức truyền dữ liệu động giữa các phần mềm trên Windows, có thể dùng để chạy file exe.
+- **Spreadsheet**: Phần mềm bảng tính như Excel hoặc Google Sheets.
+- **Payload**: Đoạn dữ liệu mang mục đích khai thác lỗi bảo mật.
+- **Sanitize**: Quá trình làm sạch dữ liệu đầu vào để loại bỏ các ký tự đặc biệt nguy hiểm.

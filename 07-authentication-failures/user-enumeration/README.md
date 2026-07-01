@@ -1,13 +1,15 @@
 # User Enumeration
 
-> **OWASP Top 10:2025**: A07:2025 – Authentication Failures | **CWE**: CWE-204 (Response Contains Information Concerning Username Validity), CWE-200 (Exposure of Sensitive Information to an Unauthorized Actor) | **Phân loại**: Authentication
+> **CWE**: CWE-204 (Response Contains Information Concerning Username Validity), CWE-200 (Exposure of Sensitive Information to an Unauthorized Actor) | **Phân loại**: Authentication
 
-## 🧱 Kiến thức Nền tảng
-Lỗ hổng dò tìm tài khoản (User Enumeration) xảy ra khi ứng dụng vô tình tiết lộ sự hiện diện của một tài khoản thông qua các manh mối khác biệt trong phản hồi. Một trong những vectơ khai thác tinh vi nhất là **Timing differences in execution (sự khác biệt về thời gian thực thi)**. Khi người dùng cố gắng đăng nhập, máy chủ cần xác thực mật khẩu. Nếu tài khoản tồn tại, máy chủ sẽ chạy hàm so khớp mật mã chậm (như `bcrypt.compare`), tốn khoảng vài trăm mili-giây. Ngược lại, nếu tài khoản không tồn tại, máy chủ thường lập tức trả về lỗi "Không tìm thấy tài khoản" mà không thực hiện phép toán băm nào. Kẻ tấn công có thể đo độ trễ phản hồi của hàng loạt yêu cầu để suy ra email nào đã được đăng ký.
+## Kiến thức Nền tảng
+Hãy tưởng tượng bạn đến gõ cửa một văn phòng để tìm một người tên là "Nam". 
+- Nếu người bảo vệ kiểm tra danh sách và lập tức trả lời: "Ở đây không có ai tên Nam cả", bạn biết ngay người này không làm việc tại đây.
+- Nhưng nếu có người tên Nam, người bảo vệ phải đi vào phòng trong, gọi Nam ra, xác nhận thông tin, mất khoảng 5 phút. 
 
-Để khắc phục rủi ro Timing Attack này, nhà phát triển cần triển khai kỹ thuật **Dummy Hash**. Khi truy vấn cơ sở dữ liệu không tìm thấy người dùng, thay vì trả về lỗi ngay, ứng dụng sẽ thực thi một phép so sánh giả định bằng cách so khớp mật khẩu người dùng nhập vào với một chuỗi hash giả có độ phức tạp tương đương hash thật. Việc này đảm bảo luồng tính toán phía máy chủ luôn tiêu thụ một lượng tài nguyên và thời gian đồng đều bất kể tài khoản có tồn tại hay không.
+Tin tặc có thể khai thác sự khác biệt này thông qua một cuộc tấn công đo thời gian phản hồi (**Timing Attack**). Khi đăng nhập, nếu tài khoản tồn tại, máy chủ sẽ thực hiện một thuật toán băm mật khẩu rất phức tạp và chậm (như `bcrypt.compare`) để đối chiếu mật khẩu, mất khoảng vài trăm mili-giây. Nhưng nếu tài khoản không tồn tại, máy chủ lập tức báo lỗi ngay ở bước tìm kiếm mà không băm gì cả. Bằng cách đo thời gian phản hồi siêu nhỏ này, tin tặc sẽ biết chính xác email nào đã đăng ký trên hệ thống của bạn.
 
-Ngoài ra, ứng dụng cần kết hợp thông điệp phản hồi chung (ví dụ: "Email hoặc mật khẩu không đúng") và áp dụng cơ chế **Rate Limiting (giới hạn tần suất)** nghiêm ngặt trên các endpoint xác thực nhằm ngăn chặn kẻ tấn công tự động gửi hàng ngàn yêu cầu liên tiếp để thăm dò dữ liệu hệ thống.
+Để ngăn chặn, lập trình viên sử dụng kỹ thuật băm giả lập (**Dummy Hash**). Nếu không tìm thấy người dùng trong cơ sở dữ liệu, máy chủ sẽ không báo lỗi ngay mà tự động lôi một chuỗi mật mã giả ra để băm thử với mật khẩu người dùng nhập vào. Việc này làm máy chủ tiêu tốn khoảng thời gian giống hệt như khi đối chiếu với tài khoản thật. Kết quả là dù tài khoản có tồn tại hay không, thời gian trả về phản hồi đều như nhau, đồng thời máy chủ hiển thị một thông điệp chung chung giống hệt nhau (như "Email hoặc mật khẩu không đúng").
 
 ```javascript
 const express = require('express');
@@ -49,13 +51,15 @@ app.post('/api/login', async (req, res) => {
 });
 ```
 
-## 🔍 Mô tả lỗ hổng
-Lỗ hổng dò tìm tài khoản (User Enumeration) xuất hiện khi ứng dụng phản hồi các thông điệp khác biệt hoặc phản hồi với độ trễ thời gian khác nhau tùy thuộc vào việc tài khoản đầu vào có tồn tại trong hệ thống hay không. Kẻ tấn công có thể lợi dụng điều này để lập danh sách các tài khoản người dùng hợp lệ, hỗ trợ đắc lực cho các cuộc tấn công brute-force mật khẩu hoặc lừa đảo đích danh (phishing).
+## Mô tả lỗ hổng
+Lỗ hổng Dò tìm tài khoản (User Enumeration) xảy ra khi ứng dụng vô tình để lộ việc một tên đăng nhập hoặc email có tồn tại trên hệ thống hay không thông qua các thông báo lỗi khác nhau hoặc qua độ trễ thời gian phản hồi của máy chủ.
 
-## ⚔️ Cơ chế tấn công
+Mối nguy hiểm của lỗ hổng này nằm ở chỗ nó giúp kẻ tấn công dễ dàng quét và lập ra một danh sách chứa toàn bộ các tài khoản có thực của khách hàng. Đây là bước đệm lý tưởng để chúng thực hiện các cuộc tấn công tiếp theo như dò mật khẩu hàng loạt (Brute-Force), tấn công lừa đảo đích danh (Phishing), hoặc tống tiền bằng cách đe dọa công bố danh tính người dùng của một dịch vụ nhạy cảm nào đó.
+
+## Cơ chế tấn công
 Kẻ tấn công gửi danh sách email đăng nhập tới trang đăng nhập, đăng ký hoặc khôi phục mật khẩu của ứng dụng. Nếu trang đăng nhập báo "Tài khoản không tồn tại" thay vì một thông báo chung "Thông tin đăng nhập không hợp lệ", kẻ tấn công sẽ biết ngay email đó có đăng ký hay chưa. Tương tự, nếu máy chủ băm mật khẩu bằng thuật toán chậm (như bcrypt) khi tìm thấy tài khoản nhưng lại bỏ qua băm khi tài khoản không tồn tại, kẻ tấn công có thể đo thời gian phản hồi (Timing Attack) để xác định sự hiện diện của người dùng.
 
-## 🛡️ Biện pháp phòng thủ
+## Biện pháp phòng thủ
 - **Tóm tắt**: Chống dò tìm tài khoản bằng cách sử dụng thông điệp phản hồi đồng nhất, đồng bộ hóa thời gian xử lý bằng dummy hash cho tài khoản không tồn tại, và triển khai giới hạn tần suất (rate limiting).
 - **Các bước chi tiết**:
   - Trả về thông báo lỗi chung, giống hệt nhau (ví dụ: 'Email hoặc mật khẩu không hợp lệ' hoặc 'Nếu email tồn tại, link khôi phục đã được gửi') cho cả tài khoản tồn tại và không tồn tại.
@@ -63,7 +67,7 @@ Kẻ tấn công gửi danh sách email đăng nhập tới trang đăng nhập,
   - Triển khai cơ chế rate limiting trên tất cả các endpoint liên quan đến xác thực để ngăn cản việc rà quét tự động hàng loạt.
   - Tránh trả về các mã trạng thái HTTP khác nhau (như 200 OK vs 404 Not Found) hoặc giao diện hiển thị khác nhau dựa trên sự tồn tại của người dùng.
 
-## 💻 Code Example
+## Code Example
 ```javascript
 const bcrypt = require('bcrypt');
 
@@ -93,7 +97,15 @@ app.post('/api/login', async (req, res) => {
 });
 ```
 
-## 📚 Ghi chú kỹ thuật & Nguồn tham khảo
-- **Trạng thái kiểm định**: FIXED
-- **Ghi chú kỹ thuật**: Mã nguồn JS đã được sửa đổi toàn diện: loại bỏ chú thích dạng `#` của Python, định dạng lại dummy hash đạt chuẩn 60 ký tự để không ném ra lỗi 500 khi chạy `bcrypt.compare`, lấy tham số từ `req.body` thay vì `req.params`. Bổ sung ép kiểu dữ liệu chuỗi `String(password || '')` và xử lý an toàn cho tài khoản OAuth (tồn tại trong DB nhưng có passwordHash trống hoặc không hợp lệ) để tránh lỗi lệch thời gian phản hồi (Timing Attack).
+## Xem thêm
+- [2FA/MFA Bypass](../2fa-mfa-bypass/README.md)
+
+## Nguồn tham khảo
 - **Nguồn tham khảo**: OWASP Authentication Cheat Sheet, CWE-204, CWE-200, PortSwigger
+
+## Giải thích thuật ngữ
+- **User Enumeration (Dò tìm tài khoản)**: Lỗ hổng cho phép kẻ tấn công xác định xem một tài khoản người dùng hoặc email cụ thể có tồn tại trên hệ thống hay không bằng cách phân tích sự khác biệt trong phản hồi của ứng dụng.
+- **Timing Attack (Tấn công đo thời gian)**: Phương pháp tấn công gián tiếp bằng cách đo lượng thời gian máy chủ cần để xử lý các yêu cầu khác nhau, từ đó suy đoán ra cấu trúc logic hoặc sự hiện diện của dữ liệu bên trong.
+- **Dummy Hash (Băm giả định)**: Kỹ thuật chạy thuật toán băm với một khóa giả khi tài khoản không tồn tại, nhằm làm giả thời gian xử lý của máy chủ sao cho tương đương với trường hợp tài khoản có thật.
+- **Rate Limiting (Giới hạn tần suất)**: Biện pháp kiểm soát số lượng yêu cầu mà một địa chỉ IP hoặc người dùng được phép thực hiện trong một đơn vị thời gian để ngăn chặn việc dò quét tự động.
+- **Authentication Disclosure (Lộ lọt thông tin xác thực)**: Tình trạng ứng dụng cung cấp quá nhiều chi tiết về quá trình đăng nhập (như "mật khẩu sai" hoặc "tài khoản không tồn tại"), gián tiếp giúp tin tặc thu hẹp phạm vi tấn công.

@@ -1,18 +1,18 @@
 # API Rate Limiting & Resource Abuse
 
-> **OWASP**: API Security (API4:2023) | **CWE**: CWE-770 | **Nguồn**: OWASP API Security Top 10, PortSwigger
+> **CWE**: CWE-770 | **Phân loại**: API Security
 
-## 🧱 Kiến thức Nền tảng
+## Kiến thức Nền tảng
+Hãy tưởng tượng bạn mở một quầy phát quà miễn phí cho người dân. Nhận thấy có một số người tham lam xếp hàng nhận quà xong liền chạy ra sau xếp hàng lại để lấy tiếp hàng chục lần, khiến những người đến sau không có quà. Để giải quyết việc này, bạn quyết định cử một người bảo vệ đứng ở cửa để kiểm soát: "Mỗi người chỉ được phép nhận tối đa 1 phần quà trong vòng 1 tiếng".
+Cơ chế kiểm soát tần suất này trong thế giới mạng chính là **Giới hạn lưu lượng (Rate Limiting)**. Đây là tấm khiên bảo vệ các cổng API của bạn trước những kẻ tham lam cố tình gửi hàng triệu yêu cầu liên tục để dò mật khẩu (brute force), làm sập máy chủ (DoS), hay vét sạch tài nguyên của hệ thống.
 
-**Rate limiting** là cơ chế kiểm soát số lượng request mà một client có thể gửi đến API trong một khoảng thời gian nhất định. Đây là tuyến phòng thủ quan trọng chống lại brute force, DoS, credential stuffing, và resource exhaustion.
+Để thực hiện việc này, người bảo vệ có thể áp dụng một số phương pháp:
+- **Cửa sổ cố định (Fixed Window)**: Chia thời gian thành các khoảng cố định (ví dụ cứ đúng từ 8h00 đến 8h01 tối đa nhận 100 yêu cầu).
+- **Cửa sổ trượt (Sliding Window)**: Linh hoạt hơn, tính lùi lại đúng 60 giây kể từ thời điểm hiện tại để đếm số yêu cầu đã gửi.
+- **Thùng chứa mã báo hiệu (Token Bucket)**: Phát cho mỗi người dùng một chiếc xô tự động đầy dần theo thời gian. Mỗi khi gửi yêu cầu, họ phải nộp 1 chiếc thẻ (token) trong xô ra, nếu xô rỗng thì phải đợi thẻ tự động sinh thêm.
+- **Thùng rò rỉ (Leaky Bucket)**: Giống như một chiếc xô bị thủng lỗ ở đáy. Yêu cầu đổ vào xô có thể dồn dập, nhưng nước chỉ chảy ra ở đáy với tốc độ đều đặn, nếu đổ vào quá nhanh làm tràn xô, những yêu cầu thừa sẽ bị loại bỏ.
 
-Các thuật toán rate limiting phổ biến:
-- **Fixed Window**: đếm request trong khung thời gian cố định (ví dụ: 100 req/phút)
-- **Sliding Window**: cửa sổ thời gian di chuyển liên tục, chính xác hơn
-- **Token Bucket**: mỗi client có "bucket" chứa token, mỗi request tiêu thụ token
-- **Leaky Bucket**: request được xử lý với tốc độ cố định, vượt quá thì drop
-
-Rate limit thường được triển khai tại nhiều tầng: API Gateway, WAF, application middleware, hoặc database level.
+Người bảo vệ này có thể đứng ở nhiều trạm gác khác nhau: ngay tại cổng ngõ vào hệ thống (API Gateway), tường lửa bảo vệ (WAF), hoặc ngay trong lòng ứng dụng (Middleware).
 
 ```python
 # Simple token bucket rate limiter — normal operation
@@ -43,20 +43,17 @@ class TokenBucket:
 limiter = TokenBucket(capacity=10, refill_rate=10)
 ```
 
-## 🔍 Mô tả lỗ hổng
+## Mô tả lỗ hổng
+Lỗ hổng **Unrestricted Resource Consumption (Tiêu thụ tài nguyên không giới hạn)** xuất hiện khi hệ thống của bạn quá phóng khoáng và thiếu cảnh giác, cho phép khách hàng yêu cầu phục vụ những công việc cực kỳ tốn kém mà không có giới hạn nào.
 
-**API4:2023 — Unrestricted Resource Consumption** xảy ra khi API không giới hạn đúng cách tài nguyên mà client có thể tiêu thụ. Không chỉ là thiếu rate limit đơn giản, mà còn bao gồm:
+Hãy tưởng tượng một vị khách vào nhà hàng và yêu cầu: "Hãy dọn cho tôi 1 triệu đĩa thức ăn cùng lúc" (Pagination abuse) hoặc gửi một yêu cầu dài hàng trang giấy chỉ để ghi một dòng chữ nhỏ (Large payload DoS). Nếu nhà hàng cố phục vụ, nhà bếp sẽ ngay lập tức tê liệt vì quá tải.
+Lỗ hổng này mở ra vô vàn hiểm họa:
+- Kẻ tấn công thoải mái gửi hàng triệu yêu cầu dò mã OTP hay mật khẩu mà không bao giờ bị chặn.
+- Yêu cầu máy chủ xuất ra hàng triệu dòng dữ liệu cùng lúc, khiến RAM máy chủ quá tải và sập nguồn (OOM).
+- Gửi các file hoặc gói dữ liệu khổng lồ để làm tràn bộ nhớ máy chủ.
+- Chi phí vận hành máy chủ đám mây (cloud) tăng vọt chóng mặt do tài nguyên bị lạm dụng vô tội vạ, tạo nên cú sốc hóa đơn cho doanh nghiệp.
 
-- **Thiếu rate limit hoàn toàn** trên endpoint nhạy cảm (login, OTP, password reset)
-- **Pagination abuse**: yêu cầu `?page_size=999999` để dump toàn bộ database
-- **Large payload DoS**: gửi request body cực lớn gây exhaustion bộ nhớ
-- **Regex DoS (ReDoS)**: input khiến regex xử lý exponential time
-- **Resource-intensive operations**: yêu cầu export CSV, generate report không giới hạn
-
-Hậu quả: brute force thành công, chiếm tài khoản, denial of service, chi phí cloud tăng đột biến (bill shock).
-
-## ⚔️ Cơ chế tấn công
-
+## Cơ chế tấn công
 **1. Brute force OTP — No rate limit on verification:**
 
 ```python
@@ -138,18 +135,13 @@ POST /api/login HTTP/1.1
 # Some parsers process both values, doubling attempts per request
 ```
 
-## 🛡️ Biện pháp phòng thủ
-
-1. **Rate limit theo nhiều dimension** — IP + User ID + Endpoint:
-
+## Biện pháp phòng thủ
 ```python
 # Multi-dimensional rate limiting with Redis
 import redis
 from functools import wraps
 from flask import request, jsonify
-
 r = redis.Redis()
-
 def rate_limit(max_requests, window_seconds, key_func):
     """Rate limit decorator with configurable key function"""
     def decorator(f):
@@ -165,7 +157,6 @@ def rate_limit(max_requests, window_seconds, key_func):
             return f(*args, **kwargs)
         return wrapper
     return decorator
-
 # Apply: 5 OTP attempts per 15 minutes, keyed by user ID
 @app.route('/verify-otp', methods=['POST'])
 @rate_limit(max_requests=5, window_seconds=900,
@@ -173,9 +164,6 @@ def rate_limit(max_requests, window_seconds, key_func):
 def verify_otp():
     pass
 ```
-
-2. **Giới hạn pagination và payload size:**
-
 ```python
 # Enforce maximum page size and request body limits
 @app.route('/api/users')
@@ -183,16 +171,11 @@ def list_users():
     page = max(1, request.args.get('page', 1, type=int))
     page_size = request.args.get('page_size', 20, type=int)
     page_size = min(page_size, 100)  # CAP at 100 — never allow more
-
     users = db.users.find().skip((page - 1) * page_size).limit(page_size)
     return jsonify(users)
-
 # Limit request body size at framework level
 app.config['MAX_CONTENT_LENGTH'] = 1 * 1024 * 1024  # 1MB max body size
 ```
-
-3. **Trả về rate limit headers** để client biết giới hạn:
-
 ```http
 HTTP/1.1 200 OK
 X-RateLimit-Limit: 100
@@ -201,12 +184,15 @@ X-RateLimit-Reset: 1625097600
 Retry-After: 30
 ```
 
-4. **Normalize URL/method** trước khi áp dụng rate limit — tránh bypass bằng case variation.
+- **Tóm tắt**: Bảo vệ API khỏi lạm dụng tài nguyên bằng cách giới hạn tần suất theo nhiều chiều (IP, User ID), giới hạn kích thước payload và kích thước phân trang.
+- **Các bước chi tiết**:
+  - **Rate limit theo nhiều dimension** — IP + User ID + Endpoint:
+  - **Giới hạn pagination và payload size:**
+  - **Trả về rate limit headers** để client biết giới hạn:
+  - **Normalize URL/method** trước khi áp dụng rate limit — tránh bypass bằng case variation.
+  - **Không tin tưởng `X-Forwarded-For`** từ client — chỉ dùng IP từ trusted proxy.
 
-5. **Không tin tưởng `X-Forwarded-For`** từ client — chỉ dùng IP từ trusted proxy.
-
-## 💻 Code Example
-
+## Code Example
 ```python
 # === VULNERABLE: No rate limit, no pagination cap, no body limit ===
 @app.route('/api/login', methods=['POST'])
@@ -247,8 +233,21 @@ def login_secure():
     return jsonify({"error": "Invalid credentials"}), 401
 ```
 
-## 📚 Nguồn tham khảo
+## Xem thêm
+- [Các bài học liên quan trong cùng thư mục](../)
+
+## Nguồn tham khảo
 - OWASP: https://owasp.org/API-Security/editions/2023/en/0xa4-unrestricted-resource-consumption/
 - PortSwigger: https://portswigger.net/web-security/authentication/password-based
 - CWE: https://cwe.mitre.org/data/definitions/770.html
 - IETF Rate Limiting: https://datatracker.ietf.org/doc/draft-ietf-httpapi-ratelimit-headers/
+
+## Giải thích thuật ngữ
+- **Rate Limiting (Giới hạn lưu lượng)**: Cơ chế kiểm soát và giới hạn số lượng yêu cầu mà một người dùng có thể gửi lên hệ thống trong một khoảng thời gian.
+- **API Gateway**: Máy chủ trung gian đóng vai trò là cửa ngõ đầu tiên tiếp nhận và định tuyến các yêu cầu API từ bên ngoài vào hệ thống.
+- **Middleware**: Các đoạn mã trung gian nằm giữa luồng tiếp nhận yêu cầu và xử lý logic chính của ứng dụng, chuyên dùng để kiểm tra quyền truy cập hoặc áp dụng rate limit.
+- **Token**: Thẻ định danh hoặc thẻ quyền hạn được sử dụng để thực hiện các yêu cầu trong thuật toán Token Bucket.
+- **Credential Stuffing**: Phương thức tấn công sử dụng danh sách tài khoản/mật khẩu bị rò rỉ từ các nguồn khác để thử đăng nhập tự động trên diện rộng.
+- **Pagination (Phân trang)**: Kỹ thuật chia nhỏ danh sách kết quả trả về từ database thành nhiều trang nhỏ để tăng hiệu suất hiển thị.
+- **Bill Shock**: Chi phí hóa đơn dịch vụ đám mây tăng đột biến ngoài tầm kiểm soát do tài nguyên hệ thống bị tiêu thụ quá mức.
+- **Account Lockout**: Cơ chế tạm khóa tài khoản sau một số lần đăng nhập sai liên tiếp để chống brute force.

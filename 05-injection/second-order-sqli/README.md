@@ -1,14 +1,10 @@
 # Second-Order SQL Injection
 
-> **OWASP Top 10:2025**: A05:2025 – Injection | **CWE**: CWE-89 | **Nguồn**: PortSwigger, OWASP, CWE MITRE
+> **CWE**: CWE-89 | **Phân loại**: Injection
 
-## 🧱 Kiến thức Nền tảng
+## Kiến thức Nền tảng
 
-Trong SQL Injection truyền thống (first-order), payload được inject và thực thi **ngay lập tức** trong cùng một request. Tuy nhiên, nhiều ứng dụng hiện đại đã áp dụng parameterized queries tại điểm nhập liệu (input point), khiến attacker không thể khai thác trực tiếp.
-
-**Second-Order SQL Injection** (hay Stored SQL Injection) là kỹ thuật mà payload được **lưu trữ an toàn** vào database trong bước đầu tiên, sau đó được **đọc ra và sử dụng không an toàn** trong một truy vấn SQL khác ở bước thứ hai. Điểm mấu chốt: **injection point ≠ execution point**.
-
-Ví dụ luồng hoạt động bình thường của hệ thống đổi mật khẩu:
+Trong các cuộc tấn công SQL Injection truyền thống (first-order), kẻ xấu chèn mã độc vào và nó sẽ phát nổ ngay lập tức trong cùng một yêu cầu gửi lên. Để đối phó, các ứng dụng ngày nay đã bảo vệ cửa ngõ đầu vào rất tốt bằng cách sử dụng các truy vấn tham số hóa (parameterized queries). Tuy nhiên, kẻ tấn công vẫn có một chiêu thức thâm hiểm hơn gọi là SQL Injection bậc hai (Second-Order SQL Injection). Với chiêu này, kẻ xấu sẽ gửi một chuỗi mã độc trông có vẻ vô hại ở bước đầu tiên để ứng dụng lưu trữ an toàn vào cơ sở dữ liệu. Sau đó, ở một bước thứ hai, khi ứng dụng đọc dữ liệu này ra từ cơ sở dữ liệu để thực hiện một truy vấn khác, mã độc mới thực sự phát nổ. Điểm mấu chốt ở đây là nơi nhập mã độc và nơi mã độc thực thi là hoàn toàn khác nhau.
 
 ```python
 # Step 1: User registration — stores username safely with parameterized query
@@ -30,16 +26,11 @@ def change_password(session_user, new_password):
 
 Quy trình trên an toàn vì **cả hai bước đều dùng parameterized query**. Vấn đề phát sinh khi bước thứ hai sử dụng string concatenation.
 
-## 🔍 Mô tả lỗ hổng
+## Mô tả lỗ hổng
 
-Second-Order SQLi xảy ra khi developer tin rằng dữ liệu đã nằm trong database thì "đáng tin cậy" và sử dụng trực tiếp trong câu SQL bằng cách nối chuỗi. Đây là sai lầm về **trust boundary** — dữ liệu từ database không nhất thiết an toàn nếu nguồn gốc của nó là user input chưa được xử lý đúng ngữ cảnh.
+Lỗ hổng Second-Order SQLi xảy ra do lập trình viên mắc phải một sai lầm phổ biến về ranh giới tin cậy: họ cho rằng dữ liệu một khi đã nằm yên vị bên trong cơ sở dữ liệu của mình thì mặc định là an toàn và có thể thoải mái lôi ra sử dụng bằng cách cộng chuỗi trực tiếp. Kẻ tấn công lợi dụng điều này bằng cách đặt một tên đăng nhập độc hại (ví dụ: `admin' --`). Bước đăng ký tài khoản diễn ra suôn sẻ và tên này được lưu vào database. Đến khi nạn nhân thực hiện thao tác đổi mật khẩu, ứng dụng lấy tên này ra và ghép nối trực tiếp vào câu lệnh SQL cập nhật mật khẩu, vô tình biến đổi câu lệnh thành "đổi mật khẩu của người dùng admin". Lỗ hổng này cực kỳ nguy hiểm vì nó ẩn mình rất kỹ, vượt qua các công cụ quét tự động thông thường và có thể âm thầm gây họa sau nhiều ngày lưu trữ.
 
-Lỗ hổng này đặc biệt khó phát hiện vì:
-- Automated scanner thường chỉ test first-order injection
-- Payload và execution xảy ra ở **hai request khác nhau**, có thể cách nhau hàng giờ hoặc hàng ngày
-- Code review phải trace data flow xuyên suốt nhiều module
-
-## ⚔️ Cơ chế tấn công
+## Cơ chế tấn công
 
 **Kịch bản kinh điển: Thay đổi mật khẩu admin**
 
@@ -74,15 +65,17 @@ query = f"SELECT * FROM employees WHERE company='{company}'"
 # Results in UNION-based data extraction
 ```
 
-## 🛡️ Biện pháp phòng thủ
+## Biện pháp phòng thủ
 
-1. **Parameterized queries EVERYWHERE**: Không chỉ tại input point mà tại **mọi nơi** dữ liệu được sử dụng trong SQL — kể cả dữ liệu từ database.
-2. **Zero trust cho stored data**: Coi dữ liệu từ database cũng là untrusted input, áp dụng cùng mức độ sanitization.
-3. **Input validation tại registration**: Validate username chỉ chứa ký tự hợp lệ (alphanumeric, underscore).
-4. **Code review cross-module**: Trace data flow từ input → storage → retrieval → usage để phát hiện second-order vulnerability.
-5. **ORM framework**: Sử dụng ORM (SQLAlchemy, Django ORM) giúp tự động parameterize mọi truy vấn.
+- **Tóm tắt**: Sử dụng truy vấn tham số hóa ở mọi nơi dữ liệu được sử dụng, không tin cậy dữ liệu được truy xuất từ cơ sở dữ liệu.
+- **Các bước chi tiết**:
+  - Parameterized queries EVERYWHERE: Không chỉ tại input point mà tại mọi nơi dữ liệu được sử dụng trong SQL — kể cả dữ liệu lấy từ database.
+  - Zero trust cho stored data: Coi dữ liệu từ database cũng là untrusted input, áp dụng cùng mức độ sanitization.
+  - Input validation tại registration: Validate username chỉ chứa ký tự hợp lệ (alphanumeric, underscore).
+  - Code review cross-module: Trace data flow từ input → storage → retrieval → usage để phát hiện second-order vulnerability.
+  - ORM framework: Sử dụng ORM (SQLAlchemy, Django ORM) giúp tự động parameterize mọi truy vấn.
 
-## 💻 Code Example
+## Code Example
 
 ```python
 # === VULNERABLE CODE ===
@@ -110,8 +103,20 @@ def change_password_secure(user_id, new_password):
     # Using ID (integer) instead of username further reduces attack surface
 ```
 
-## 📚 Nguồn tham khảo
+## Xem thêm
+
+- [SQL Injection](../sql-injection/) — Lỗ hổng SQL Injection cơ bản sử dụng đầu vào trực tiếp từ người dùng trong cùng một vòng đời yêu cầu.
+
+## Nguồn tham khảo
 
 - PortSwigger: https://portswigger.net/web-security/sql-injection#second-order-sql-injection
 - OWASP: https://owasp.org/www-community/attacks/SQL_Injection
 - CWE: https://cwe.mitre.org/data/definitions/89.html
+
+## Giải thích thuật ngữ
+
+- **Second-Order SQLi**: Lỗ hổng SQL Injection xảy ra khi mã độc được lưu vào database trước rồi mới thực thi ở một truy vấn sau đó.
+- **Trust Boundary**: Ranh giới tin cậy phân biệt giữa dữ liệu đã kiểm duyệt và dữ liệu chưa được kiểm duyệt.
+- **Parameterized Query**: Kỹ thuật truyền tham số riêng biệt giúp triệt tiêu hoàn toàn khả năng chèn câu lệnh SQL trái phép.
+- **String Concatenation**: Hành động ghép nối các chuỗi chữ lại với nhau, thường gây ra các lỗi injection.
+- **First-Order SQLi**: Lỗ hổng SQL Injection truyền thống thực thi ngay lập tức trong yêu cầu gửi lên.

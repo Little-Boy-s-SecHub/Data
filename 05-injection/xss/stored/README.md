@@ -1,15 +1,11 @@
-# Cross-Site Scripting
+# Cross-Site Scripting (Stored)
 
-> **OWASP Top 10:2025**: A05:2025 – Injection | **CWE**: CWE-79 (Improper Neutralization of Input During Web Page Generation) | **Phân loại**: XSS
+> **CWE**: CWE-79 (Improper Neutralization of Input During Web Page Generation) | **Phân loại**: Cross-Site Scripting
 
-## 🧱 Kiến thức Nền tảng
-Lỗ hổng bảo mật ứng dụng web thường phân biệt rõ ràng giữa hai loại lưu trữ: lưu trữ vĩnh viễn (persistent storage) và lưu trữ tạm thời (transient storage). Lưu trữ tạm thời liên quan đến các dữ liệu chỉ tồn tại ngắn hạn trong phạm vi một yêu cầu đơn lẻ hoặc trong một phiên làm việc cục bộ của một người dùng. Ngược lại, lưu trữ vĩnh viễn là nơi lưu giữ dữ liệu lâu dài trong cơ sở dữ liệu hoặc hệ thống tệp tin trên máy chủ, sẵn sàng cung cấp cho bất kỳ người dùng nào truy cập sau đó.
+## Kiến thức Nền tảng
 
-Lỗ hổng Stored XSS (XSS lưu trữ) phát sinh trực tiếp từ sự tương tác thiếu an toàn với lưu trữ vĩnh viễn. Khi người dùng nhập dữ liệu chứa mã độc và ứng dụng lưu thẳng dữ liệu thô này vào persistent storage. Vấn đề nguy hiểm xảy ra khi máy chủ lấy dữ liệu này ra từ bộ lưu trữ vĩnh viễn để hiển thị cho các thành viên khác.
+Trong thiết kế ứng dụng web, dữ liệu thường được lưu trữ theo hai cách: tạm thời (chỉ tồn tại trong một yêu cầu hoặc một phiên làm việc ngắn hạn) và vĩnh viễn (được ghi sâu vào cơ sở dữ liệu hoặc tệp tin trên máy chủ để dùng lại lâu dài). Các dữ liệu vĩnh viễn như lời bình luận dưới bài viết hay thông tin cá nhân của bạn sẽ luôn ở đó, sẵn sàng hiển thị cho bất kỳ ai truy cập vào trang web sau này. Đây chính là mảnh đất màu mỡ cho các cuộc tấn công lưu trữ nếu không được quản lý an toàn.
 
-Do dữ liệu mang tính vĩnh viễn, mã độc sẽ tự động thực thi trên trình duyệt của bất kỳ ai tải trang chứa thông tin đó. Để phòng thủ triệt để, ứng dụng cần thực thi việc làm sạch và mã hóa dữ liệu tại thời điểm hiển thị (render time), hoặc sử dụng các thư viện lọc định dạng văn bản giàu chuyên dụng như `nh3` trước khi render ra trình duyệt.
-
-### Code ví dụ hoạt động bình thường (Secure Data Storing and Rendering)
 ```python
 import nh3
 
@@ -42,47 +38,123 @@ def render_comments_to_html():
     return "\n".join(rendered_list)
 ```
 
-## 🔍 Mô tả lỗ hổng
-Stored XSS (XSS lưu trữ / Persistent XSS) xảy ra khi dữ liệu đầu vào chứa mã độc của người dùng được máy chủ lưu trữ trực tiếp vào cơ sở dữ liệu (ví dụ bình luận, hồ sơ cá nhân). Khi những người dùng khác truy cập trang web hiển thị dữ liệu này, đoạn mã độc sẽ được tải lên từ database và tự động thực thi trên trình duyệt của họ. Lỗ hổng này cực kỳ nguy hại vì nó không yêu cầu nạn nhân phải click vào một liên kết độc hại riêng biệt mà hoạt động hoàn toàn tự động.
+## Mô tả lỗ hổng
 
-## ⚔️ Cơ chế tấn công
-Kẻ tấn công gửi một bài đăng hoặc bình luận chứa mã JavaScript (ví dụ: `<script>alert('hack')</script>`). Ứng dụng lưu bài viết này nguyên vẹn vào cơ sở dữ liệu. Khi Vic truy cập vào trang để đọc bình luận, máy chủ lấy dữ liệu này từ database, chèn nguyên văn vào trang HTML và gửi về cho trình duyệt của Vic. Trình duyệt của Vic tự động biên dịch thẻ `<script>` và chạy kịch bản độc hại, có thể đánh cắp phiên đăng nhập hoặc thực hiện các thao tác thay đổi dữ liệu danh nghĩa Vic.
+Lỗ hổng Stored XSS (XSS lưu trữ hay XSS vĩnh viễn) xảy ra khi ứng dụng web cho phép người dùng nhập dữ liệu chứa mã độc, rồi ngây thơ lưu thẳng dữ liệu thô này vào cơ sở dữ liệu mà không hề làm sạch. Sự nguy hiểm thực sự nằm ở chỗ: vì đoạn mã độc này đã được lưu trữ vĩnh viễn, nên cứ mỗi khi có bất kỳ người dùng nào truy cập vào trang web đó, máy chủ sẽ tự động lôi dữ liệu độc hại từ database ra và hiển thị lên trình duyệt của họ, kích hoạt mã độc chạy ngay lập tức. Đây là loại XSS nguy hiểm nhất vì kẻ tấn công không cần phải gửi đường link dụ dỗ từng người; mã độc sẽ tự động lây lan và tấn công hàng loạt khách hàng truy cập trang web một cách hoàn toàn âm thầm.
 
-## 🛡️ Biện pháp phòng thủ
-- **Tóm tắt**: Ngăn chặn Stored XSS bằng cách kiểm duyệt đầu vào, lưu trữ dữ liệu thô, thực hiện mã hóa đầu ra theo mặc định (Jinja2 auto-escape), sử dụng các thư viện vệ sinh an toàn (như nh3) cho nội dung rich text.
+## Cơ chế tấn công
+
+Các biến thể tấn công Stored XSS nâng cao bao gồm:
+
+*   **XSS via SVG Upload**: Kẻ tấn công tải lên tệp đồ họa vector (SVG) chứa mã JavaScript độc hại. SVG thực chất là một tài liệu XML, do đó trình duyệt có thể thực thi script bên trong nó khi tệp được hiển thị trực tiếp.
+    *   *Payload SVG độc hại*:
+        ```xml
+        <?xml version="1.0" standalone="no"?>
+        <svg xmlns="http://www.w3.org/2000/svg" onload="alert(document.domain)">
+          <circle cx="50" cy="50" r="40" fill="blue" />
+        </svg>
+        ```
+*   **Mutation XSS (mXSS)**: Xảy ra do sự không đồng nhất trong cách xử lý HTML giữa thư viện làm sạch (sanitizer) và trình duyệt web. Kẻ tấn công gửi một payload trông có vẻ vô hại với thư viện vệ sinh HTML, nhưng khi trình duyệt phân tích cú pháp và ghi lại vào DOM (thông qua `innerHTML`), nó sẽ tự động biến đổi (mutate) cấu trúc và kích hoạt thực thi JavaScript.
+    *   *Payload mXSS ví dụ*:
+        ```html
+        <noscript><p title="</noscript><img src=x onerror=alert(1)>"></noscript>
+        ```
+        Bộ lọc HTML thấy thẻ `noscript` an toàn và bỏ qua thuộc tính `title` bọc trong nháy kép. Nhưng khi gán vào `innerHTML`, trình duyệt tự động đóng thẻ `noscript` sớm do sự biến đổi cú pháp, khiến thẻ `<img>` lộ ra ngoài và thực thi.
+*   **Polyglot Payloads**: Là một chuỗi payload được thiết kế tinh vi để có thể thực thi JavaScript thành công trong nhiều ngữ cảnh HTML khác nhau (nằm ngoài thẻ, nằm trong thuộc tính nháy đơn, nháy kép, hoặc trong thẻ script).
+    *   *Payload Polyglot điển hình*:
+        ```javascript
+        javascript:"/*'/*`/*--></noscript></title></style></textarea></script></xmp><svg/onload=alert(1)>
+        ```
+
+## Biện pháp phòng thủ
+
+- **Tóm tắt**: Sử dụng các thư viện lọc HTML chuyên dụng (như DOMPurify ở client, nh3 ở server), mã hóa đầu ra theo ngữ cảnh, cấu hình CSP và thiết lập cookie HttpOnly.
 - **Các bước chi tiết**:
-  - Vệ sinh và lọc sạch dữ liệu đầu vào trước khi lưu vào cơ sở dữ liệu để loại bỏ các thẻ HTML nguy hại (chỉ áp dụng đối với nội dung cho phép định dạng HTML).
-  - Áp dụng cơ chế tự động mã hóa đầu ra dựa theo ngữ cảnh của các template engine hiện đại (ví dụ tính năng tự động escape của Jinja2).
-  - Khi cho phép hiển thị các định dạng văn bản giàu (rich text), hãy định nghĩa bộ lọc vệ sinh đầu ra bằng các thư viện an toàn ở thời điểm render thay vì lúc lưu vào DB.
-  - Cấu hình tiêu đề cookie `HttpOnly` để ngăn chặn kịch bản phía client đánh cắp cookie phiên làm việc.
-  - Thiết lập chính sách Content Security Policy (CSP) chặt chẽ cho phép kiểm soát tài nguyên kịch bản.
+  - Không bao giờ tin cậy dữ liệu từ cơ sở dữ liệu; hãy thực hiện mã hóa HTML đầu ra trước khi render.
+  - Sử dụng thư viện an toàn `nh3` (Python) hoặc `DOMPurify` (JavaScript) để làm sạch HTML đối với các trường cho phép nhập văn bản định dạng (Rich Text).
+  - Đối với tệp tải lên (như SVG): Cấu hình máy chủ để trả về tiêu đề `Content-Disposition: attachment` hoặc phục vụ các tệp này từ một domain riêng biệt (sandboxed domain) để tránh đánh cắp cookie của domain chính.
+  - Triển khai chính sách Content Security Policy (CSP) mạnh để ngăn thực thi inline scripts.
 
-## 💻 Code Example
+## Code Example
+
 ```python
+# === VULNERABLE CODE (Python Flask) ===
+from flask import Flask, request, render_template_string
+import sqlite3
+
+app = Flask(__name__)
+
+@app.route('/comment', methods=['POST'])
+def add_comment():
+    content = request.form.get('content')
+    conn = sqlite3.connect('blog.db')
+    cursor = conn.cursor()
+    # Stores the raw content including potential SVG payloads or polyglots
+    cursor.execute("INSERT INTO comments (content) VALUES (?)", (content,))
+    conn.commit()
+    return "Comment added!"
+
+@app.route('/view')
+def view_comments():
+    conn = sqlite3.connect('blog.db')
+    cursor = conn.cursor()
+    cursor.execute("SELECT content FROM comments")
+    comments = cursor.fetchall()
+    
+    # DANGER: Directly rendering unsanitized HTML from database leads to Stored XSS
+    html = "<ul>"
+    for c in comments:
+        html += f"<li>{c[0]}</li>"
+    html += "</ul>"
+    return html
+
+# === SECURE CODE (Python Flask using nh3) ===
 import nh3
 
-def save_comment(raw_content):
-    # Store raw content in the database.
-    # Sanitization/escaping should ideally be done at render/output time.
-    db.save(raw_content)
-
-# 1. Option A: Outputting plain text (highly recommended)
-# In Jinja2 templates, standard interpolation automatically HTML-escapes everything:
-# {{ comment.content }}  <- Safe: all HTML tags are rendered as plaintext literals
-
-# 2. Option B: Render simple rich formatting tags using nh3 at output time:
-# First, define a custom template filter in Flask/Jinja2:
-# @app.template_filter('sanitize_html')
-# def sanitize_html(text):
-#     if text is None or text == '':
-#         return ''
-#     return nh3.clean(str(text), tags={'b', 'i', 'strong', 'em', 'p'})
-#
-# Then render in the Jinja2 template using the filter and safe flag:
-# {{ comment.content | sanitize_html | safe }}
+@app.route('/secure-view')
+def view_comments_secure():
+    conn = sqlite3.connect('blog.db')
+    cursor = conn.cursor()
+    cursor.execute("SELECT content FROM comments")
+    comments = cursor.fetchall()
+    
+    html = "<ul>"
+    for c in comments:
+        # SECURE: Sanitize rich text using nh3 before rendering, removing dangerous scripts/tags
+        safe_content = nh3.clean(c[0], tags={'b', 'i', 'strong', 'em', 'p', 'br'})
+        html += f"<li>{safe_content}</li>"
+    html += "</ul>"
+    return html
 ```
 
-## 📚 Ghi chú kỹ thuật & Nguồn tham khảo
-- **Trạng thái kiểm định**: FIXED
-- **Ghi chú kỹ thuật**: Đã thay thế khuyến nghị sử dụng thư viện `bleach` (Python) đã bị Mozilla ngừng bảo trì từ năm 2023 bằng thư viện an toàn `nh3` (viết bằng Rust). Đồng thời khắc phục lỗi trong hàm lọc tự chế `sanitize_html` khi câu lệnh `if not text` lọc nhầm các giá trị falsy hợp lệ như số `0` hoặc boolean `False`, chuyển sang kiểm tra đúng kiểu rỗng `if text is None or text == ''`.
-- **Nguồn tham khảo**: OWASP XSS Cheat Sheet, PortSwigger
+```javascript
+// === SECURE CLIENT-SIDE RENDERING (JavaScript) ===
+// Safe DOM manipulation using textContent to prevent mXSS
+function displayCommentSecure(rawCommentText) {
+    const commentElement = document.createElement('div');
+    commentElement.className = 'comment-box';
+    
+    // SECURE: textContent automatically treats input as plaintext, preventing XSS and mXSS
+    commentElement.textContent = rawCommentText;
+    
+    document.getElementById('comments-container').appendChild(commentElement);
+}
+```
+
+## Xem thêm
+
+- [Session Hijacking](../../../07-authentication-failures/session-hijacking/) — Đánh cắp phiên làm việc của người dùng là một trong những mục tiêu phổ biến nhất của kẻ tấn công khi khai thác thành công lỗ hổng Stored XSS.
+
+## Nguồn tham khảo
+
+- PortSwigger: https://portswigger.net/web-security/cross-site-scripting/stored
+- OWASP: https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html
+- CWE: https://cwe.mitre.org/data/definitions/79.html
+
+## Giải thích thuật ngữ
+
+- **Stored XSS**: Lỗ hổng XSS lưu trữ, mã độc nằm vĩnh viễn trong database và kích hoạt khi người dùng xem trang chứa dữ liệu đó.
+- **Persistent Storage**: Cơ chế lưu trữ dữ liệu lâu dài không bị biến mất khi tắt ứng dụng.
+- **Sanitize**: Làm sạch dữ liệu đầu vào bằng cách lọc bỏ các thành phần nguy hại.
+- **Session Hijacking**: Hành vi đánh cắp session token để cướp phiên làm việc của người dùng hợp lệ.
+- **Malware**: Phần mềm độc hại dùng để gây tổn hại đến hệ thống hoặc người dùng.

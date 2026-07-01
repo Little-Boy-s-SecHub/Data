@@ -1,13 +1,14 @@
 # Insecure Design
 
-> **OWASP Top 10:2025**: A06:2025 – Insecure Design | **CWE**: CWE-73 (External Control of File Name or Path), CWE-918 (SSRF) | **Phân loại**: Design & Process
+> **CWE**: CWE-73 (External Control of File Name or Path), CWE-918 (SSRF) | **Phân loại**: Insecure Design
 
-## 🧱 Kiến thức Nền tảng
-Thiết kế không an toàn (Insecure Design) là nhóm lỗ hổng phát sinh từ các quyết định sai lầm ngay trong giai đoạn hoạch định kiến trúc của vòng đời phát triển phần mềm (SDLC - Software Development Life Cycle). Để xây dựng ứng dụng an toàn, quy trình phát triển cần chuyển dịch sang Secure SDLC, tích hợp bảo mật vào từng bước từ khâu lên ý tưởng, thiết kế cho đến lập trình và vận hành.
+## Kiến thức Nền tảng
+Hãy tưởng tượng bạn muốn xây dựng một ngôi nhà. Bản thiết kế ban đầu của kiến trúc sư hoàn toàn quên vẽ cửa sổ phòng tắm, hoặc đặt két sắt ngay cạnh cửa sổ tầng trệt mà không có song sắt bảo vệ. Dù sau đó thợ xây có sử dụng loại gạch tốt nhất, xi măng đắt nhất và xây dựng cực kỳ tỉ mỉ (code chuẩn không lỗi cú pháp), ngôi nhà vẫn rất dễ bị đột nhập. Lỗi thiết kế gốc này tương tự như **Thiết kế không an toàn (Insecure Design)**.
 
-Trụ cột cốt lõi của Secure SDLC trong giai đoạn thiết kế là Threat Modeling (Mô hình hóa mối đe dọa). Thông qua việc xây dựng sơ đồ luồng dữ liệu (DFD), nhà phát triển có thể chủ động nhận diện, phân loại các nguy cơ bảo mật tiềm ẩn và xếp hạng mức độ ưu tiên của các biện pháp giảm thiểu.
+Để tránh những sai lầm chết người ngay từ đầu, quy trình phát triển phần mềm cần áp dụng mô hình **Secure SDLC** — tức là đưa các tiêu chuẩn bảo mật vào từng bước, ngay từ khâu lên ý tưởng. 
 
-Trong quá trình mô hình hóa, việc phân định rõ các Trust Boundaries (Ranh giới tin cậy) là cực kỳ quan trọng. Ranh giới tin cậy là đường phân tách giữa các vùng có mức độ kiểm soát khác nhau, ví dụ như giữa trình duyệt của người dùng (vùng không tin cậy) và máy chủ dịch vụ (vùng tin cậy). Một thiết kế an toàn đòi hỏi mọi luồng dữ liệu hoặc yêu cầu từ vùng không tin cậy đi qua ranh giới này đều phải chịu sự kiểm tra nghiêm ngặt về tính hợp lệ và quyền hạn ở phía máy chủ. Việc phụ thuộc vào kiểm tra bảo mật ở phía client hoặc giả định rằng dữ liệu từ client luôn an toàn là biểu hiện điển hình của việc thiết lập ranh giới tin cậy sai lầm, dẫn đến nguy cơ hệ thống bị xâm nhập dễ dàng.
+Một công cụ quan trọng trong Secure SDLC là **Threat Modeling (Mô hình hóa mối đe dọa)**, giúp lập trình viên vẽ ra bản đồ các mối nguy để chủ động phòng tránh trước khi đặt những viên gạch code đầu tiên. 
+Trong bản đồ này, việc vẽ ra các **Trust Boundaries (Ranh giới tin cậy)** là tối quan trọng. Hãy tưởng tượng ranh giới tin cậy giống như lớp cửa kính an ninh tại sân bay: khu vực sảnh ngoài là nơi bất kỳ ai cũng có thể vào (vùng không tin cậy - trình duyệt người dùng), còn khu vực phòng chờ lên máy bay là nơi cực kỳ bảo mật (vùng tin cậy - máy chủ dịch vụ). Một thiết kế an toàn bắt buộc phải kiểm tra kỹ càng mọi hành lý, giấy tờ của hành khách ngay tại cửa an ninh. Nếu bạn chỉ tin tưởng vào các tấm biển báo "cấm vào" ở sảnh ngoài mà không có nhân viên soát vé thật sự ở cửa an ninh, kẻ xấu sẽ dễ dàng lẻn vào khu vực cấm.
 
 #### Minh họa hoạt động bình thường (Normal Operation)
 ```python
@@ -30,25 +31,43 @@ def enforce_trust_boundary(required_role):
     return decorator
 ```
 
-## 🔍 Mô tả lỗ hổng
-Thiết kế không an toàn (Insecure Design) đại diện cho các lỗi bảo mật phát sinh ngay từ giai đoạn thiết kế kiến trúc hệ thống, trước khi viết code. Lỗ hổng này không thể được khắc phục bằng cách sửa mã nguồn cục bộ vì bản thân logic hoặc luồng xử lý của hệ thống đã bị sai sót hoặc thiếu các cơ chế kiểm soát cần thiết. Ví dụ điển hình bao gồm việc thiếu mô hình hóa mối đe dọa (threat modeling), thiếu phân định ranh giới tin cậy (trust boundaries), hoặc phụ thuộc vào kiểm tra bảo mật ở phía client.
+## Mô tả lỗ hổng
+Lỗ hổng Thiết kế không an toàn (Insecure Design) là những sai lầm nghiêm trọng nằm ngay ở kiến trúc và tư duy logic của hệ thống trước khi mã nguồn được viết ra. 
 
-## ⚔️ Cơ chế tấn công
+Nó nguy hiểm ở chỗ, bạn không thể vá lỗ hổng này bằng cách sửa một vài dòng code đơn lẻ. Lỗi nằm ở cách thức vận hành của quy trình. 
+
+Ví dụ điển hình là việc bạn thiết kế hệ thống chỉ ẩn nút "Xóa người dùng" trên giao diện web của người dùng thường, nhưng lại quên cấu hình kiểm tra quyền hạn thực sự ở máy chủ backend. Kẻ tấn công chỉ cần tìm ra đường dẫn API ẩn và gửi yêu cầu trực tiếp là có thể xóa bất kỳ ai. Dù code của tính năng xóa được viết hoàn hảo, không có lỗi kỹ thuật nào, hệ thống của bạn vẫn bị sụp đổ từ bên trong do lỗi thiết kế quy trình lỏng lẻo.
+
+## Cơ chế tấn công
 Bước 1: Trong giai đoạn thiết kế, các nhà phát triển không thực hiện mô hình hóa mối đe dọa (threat modeling) và không xác định đúng ranh giới tin cậy (trust boundaries).
 Bước 2: Ứng dụng phụ thuộc hoàn toàn vào việc ẩn các chức năng hành động (như nút 'Xóa người dùng') ở giao diện HTML phía client đối với người dùng không có quyền quản trị.
 Bước 3: Kẻ tấn công là người dùng thông thường phân tích mã nguồn HTML/JS, tìm ra URL API của chức năng xóa (`/admin/delete-user`), và gửi trực tiếp HTTP POST request đến API đó.
 Bước 4: Do backend không thực hiện kiểm tra quyền hạn của phiên làm việc hiện tại mà chỉ dựa vào việc ẩn nút bấm ở frontend, hành động xóa được thực thi thành công.
 
-## 🛡️ Biện pháp phòng thủ
-- **Tóm tắt**: Avoid insecure design by embedding threat modeling, secure design patterns, and rigorous access control checks throughout the SDLC.
-- **Các bước chi tiết**:
-  - Incorporate security analysis, such as threat modeling (e.g., STRIDE), into the initial design phase of any project.
-  - Implement the principle of least privilege, ensuring default configurations restrict access until explicitly authorized.
-  - Verify authorization checks at all backend logical layers, rather than relying on frontend client-side UI visibility settings.
-  - Leverage verified security libraries and patterns rather than building custom, unproven security schemes.
-  - Review and enforce business logic workflows to ensure users cannot bypass critical validation steps.
+### Ví dụ HTTP request bypass frontend validation:
+```http
+# Frontend chỉ hiển thị nút "Mua" nếu tài khoản đủ tiền
+# Nhưng kẻ tấn công bypass hoàn toàn frontend bằng cách gửi request trực tiếp:
 
-## 💻 Code Example
+POST /api/purchase HTTP/1.1
+Content-Type: application/json
+
+{"item_id": 999, "quantity": 100, "price": 0}
+
+# Server không kiểm tra lại balance phía backend
+# → Đơn hàng được xử lý với giá 0 đồng
+```
+
+## Biện pháp phòng thủ
+- **Tóm tắt**: Tránh thiết kế không an toàn bằng cách nhúng mô hình hóa mối đe dọa, các mẫu thiết kế bảo mật và kiểm tra kiểm soát truy cập nghiêm ngặt xuyên suốt vòng đời phát triển phần mềm (SDLC).
+- **Các bước chi tiết**:
+  - Tích hợp phân tích bảo mật — như mô hình hóa mối đe dọa (ví dụ: STRIDE) — vào giai đoạn thiết kế ban đầu của mọi dự án.
+  - Áp dụng nguyên tắc đặc quyền tối thiểu, đảm bảo cấu hình mặc định hạn chế quyền truy cập cho đến khi được cấp phép rõ ràng.
+  - Xác minh kiểm tra phân quyền tại tất cả các lớp logic backend, thay vì chỉ dựa vào cài đặt hiển thị giao diện phía client (frontend UI).
+  - Sử dụng các thư viện và mẫu bảo mật đã được kiểm chứng thay vì tự xây dựng các cơ chế bảo mật tùy chỉnh chưa được kiểm tra.
+  - Rà soát và thực thi quy trình logic nghiệp vụ để đảm bảo người dùng không thể bỏ qua các bước xác thực quan trọng.
+
+## Code Example
 ```python
 from functools import wraps
 from flask import session, abort
@@ -74,7 +93,16 @@ def delete_user():
     pass
 ```
 
-## 📚 Ghi chú kỹ thuật & Nguồn tham khảo
-- **Trạng thái kiểm định**: FIXED
-- **Ghi chú kỹ thuật**: Trong Milestone 2, bài học này đã được chỉnh sửa (FIXED). Đã sửa lỗi thiếu dấu ngoặc đóng/mở trên hàm psycopg2.connect và lỗi logic vòng lặp fetch dữ liệu ở Slide 10. Sửa lỗi kiểm tra SSRF yếu kém ở Slide 11, thay thế bằng cơ chế kiểm tra địa chỉ IP đã phân giải có thuộc dải IP nội bộ/không an toàn (RFC 1918, RFC 1122, RFC 3927) hay không. Bổ sung mã hóa UTF-8 cho mật khẩu bcrypt ở Slide 12.
+## Xem thêm
+- [Các bài học liên quan trong cùng thư mục](../)
+
+## Nguồn tham khảo
 - **Nguồn tham khảo**: OWASP A04:2021, CWE-73, CWE-918
+
+## Giải thích thuật ngữ
+- **Insecure Design (Thiết kế không an toàn)**: Nhóm lỗ hổng phát sinh do sai sót hoặc thiếu sót trong quá trình lập kế hoạch và thiết kế kiến trúc hệ thống, khiến hệ thống không có các cơ chế kiểm soát bảo mật cần thiết ngay từ đầu.
+- **Secure SDLC (Vòng đời phát triển phần mềm bảo mật)**: Quy trình phát triển phần mềm tích hợp các hoạt động kiểm tra và thực hành bảo mật vào mọi giai đoạn từ yêu cầu, thiết kế, triển khai cho đến kiểm thử và bảo trì.
+- **Threat Modeling (Mô hình hóa mối đe dọa)**: Phương pháp phân tích hệ thống để xác định các nguy cơ bảo mật tiềm ẩn, các tác nhân đe dọa và đề xuất các biện pháp giảm thiểu tương ứng trong giai đoạn thiết kế.
+- **Trust Boundaries (Ranh giới tin cậy)**: Điểm phân cách trong kiến trúc hệ thống nơi dữ liệu chuyển tiếp từ vùng có mức độ tin cậy thấp (ví dụ: dữ liệu do người dùng gửi lên) sang vùng có mức độ tin cậy cao (ví dụ: cơ sở dữ liệu nội bộ).
+- **STRIDE**: Khung phân loại mối đe dọa do Microsoft phát triển, đại diện cho: Giả mạo (Spoofing), Can thiệp (Tampering), Chối bỏ (Repudiation), Tiết lộ thông tin (Information Disclosure), Từ chối dịch vụ (Denial of Service), và Leo thang đặc quyền (Elevation of Privilege).
+- **Least Privilege (Đặc quyền tối thiểu)**: Nguyên tắc bảo mật yêu cầu chỉ cấp cho người dùng hoặc tiến trình các quyền hạn tối thiểu cần thiết để hoàn thành công việc của họ, nhằm hạn chế thiệt hại nếu tài khoản bị xâm nhập.

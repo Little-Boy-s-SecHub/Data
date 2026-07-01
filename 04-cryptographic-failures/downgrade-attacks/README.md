@@ -1,11 +1,11 @@
 # Downgrade Attacks
 
-> **OWASP Top 10:2025**: A04:2025 – Cryptographic Failures | **CWE**: CWE-327 | **Phân loại**: Network
+> **CWE**: CWE-327 | **Phân loại**: Cryptographic Failures
 
-## 🧱 Kiến thức Nền tảng
-Giao thức TLS (Transport Layer Security) bảo vệ dữ liệu truyền tải trên mạng bằng cách mã hóa và xác thực. Quá trình bắt tay TLS (**TLS handshake sequence**) bắt đầu bằng thông điệp **Client Hello** gửi từ trình duyệt, chứa các phiên bản TLS hỗ trợ và danh sách các bộ mã hóa (cipher suites) có sẵn. Máy chủ phản hồi bằng **Server Hello**, chọn phiên bản TLS cao nhất và bộ mã hóa an toàn nhất được hỗ trợ bởi cả hai bên (gọi là thương lượng mật mã - **cipher negotiation**).
+## Kiến thức Nền tảng
+Để bảo vệ thông tin cá nhân của bạn khi di chuyển trên không gian mạng, các trình duyệt và máy chủ sử dụng một "đường ống bảo mật" gọi là giao thức TLS. Quá trình thiết lập đường ống này bắt đầu bằng một cuộc trò chuyện xã giao (gọi là **TLS handshake sequence**). Đầu tiên, trình duyệt của bạn sẽ gửi một lời chào (**Client Hello**) kèm theo danh sách những ngôn ngữ mã hóa mà nó biết nói (các cipher suites) và các phiên bản TLS nó hỗ trợ. Máy chủ sẽ lịch sự phản hồi lại bằng một lời chào từ máy chủ (**Server Hello**), chọn phiên bản TLS cao nhất và bộ mật mã an toàn nhất mà cả hai bên cùng hiểu để trò chuyện (gọi là thương lượng mật mã - **cipher negotiation**).
 
-Trong quá trình bắt tay này, hệ thống sử dụng cả **mã hóa đối xứng (symmetric encryption)** và **mã hóa bất đối xứng (asymmetric encryption)**. Mã hóa bất đối xứng (sử dụng cặp khóa công khai và khóa bí mật) được áp dụng trong giai đoạn bắt tay để xác minh danh tính của máy chủ thông qua chứng chỉ số và thiết lập khóa phiên một cách an toàn sau khi xác thực. Khi khóa phiên được tạo ra, hai bên chuyển sang dùng mã hóa đối xứng (sử dụng cùng một khóa duy nhất cho cả mã hóa và giải mã) để bảo vệ toàn bộ dữ liệu trao đổi thực tế, vì thuật toán đối xứng xử lý nhanh hơn và ít tiêu tốn tài nguyên hơn. Tấn công hạ cấp (Downgrade Attack) can thiệp vào quá trình thương lượng cipher để ép máy chủ và máy khách sử dụng các giao thức TLS lỗi thời hoặc thuật toán mã hóa yếu, từ đó giúp kẻ tấn công bẻ khóa và đọc thông tin.
+Để quá trình này diễn ra an toàn và nhanh chóng, hệ thống kết hợp hai loại kỹ thuật: **mã hóa bất đối xứng (asymmetric encryption)** và **mã hóa đối xứng (symmetric encryption)**. Trong bước bắt tay đầu tiên, mã hóa bất đối xứng (sử dụng một cặp khóa công-tư) giống như một tấm thẻ chứng minh thư giúp xác thực danh tính của máy chủ và giúp hai bên trao đổi một "mật mã bí mật" một cách an toàn. Khi cuộc bắt tay hoàn tất và chiếc khóa bí mật đã được thống nhất, họ chuyển sang sử dụng mã hóa đối xứng (sử dụng chung một chiếc khóa bí mật này cho cả việc khóa và mở) để truyền tải toàn bộ dữ liệu thực tế. Cách làm này vừa giúp bảo mật dữ liệu tuyệt đối, vừa giúp hệ thống hoạt động cực kỳ nhanh chóng mà không làm chậm thiết bị của bạn.
 
 ### Minh họa hoạt động bình thường (Normal Operation)
 ```python
@@ -39,13 +39,17 @@ with socket.create_connection((hostname, port)) as sock:
         ssock.sendall(b"GET / HTTP/1.1\r\nHost: www.example.com\r\n\r\n")
 ```
 
-## 🔍 Mô tả lỗ hổng
-Transport Layer Security (TLS) là một giao thức liên tục phát triển. Trong quá trình bắt tay TLS, các máy khách và máy chủ thương lượng các giao thức mật mã và thuật toán mã hóa (ciphers). Trong một cuộc tấn công hạ cấp (downgrade attack), kẻ tấn công đứng ở giữa (Man-in-the-Middle - MitM) sẽ chặn cuộc bắt tay và thao túng các thương lượng nhằm buộc kết nối phải sử dụng các thuật toán mã hóa lỗi thời, yếu hơn mà kẻ tấn công có thể bẻ khóa.
+## Mô tả lỗ hổng
+Lỗ hổng tấn công hạ cấp (Downgrade Attack) xảy ra khi có một kẻ xấu đứng ở giữa đường truyền (Man-in-the-Middle - MitM) can thiệp vào cuộc trò chuyện ban đầu của bạn. 
 
-## ⚔️ Cơ chế tấn công
+Giống như một kẻ trung gian ác ý cố tình sửa bức thư chào hỏi của bạn, chúng xóa bỏ hết các ngôn ngữ bảo mật hiện đại (như TLS 1.3) và chỉ để lại các ngôn ngữ cũ kỹ, đầy lỗ hổng (như SSLv3 hay các thuật toán mã hóa lỗi thời). Máy chủ khi nhận được bức thư bị chỉnh sửa này sẽ nghĩ rằng trình duyệt của bạn quá cũ kỹ và đành phải chấp nhận sử dụng một ngôn ngữ bảo mật yếu ớt hơn để nói chuyện. 
+
+Sự nguy hiểm nằm ở chỗ, một khi kết nối đã bị hạ cấp xuống phiên bản yếu, kẻ tấn công đứng ở giữa có thể dễ dàng bẻ gãy lớp mã hóa lỏng lẻo này, đọc trộm hoặc chỉnh sửa mọi thông tin nhạy cảm của bạn (như mật khẩu, tài khoản ngân hàng) mà không hề bị phát hiện.
+
+## Cơ chế tấn công
 Kẻ tấn công chèn chính mình làm kẻ đứng giữa (MitM). Trong quá trình bắt tay TLS, chúng sửa đổi danh sách các thuật toán mã hóa được hỗ trợ của máy khách để chỉ hiển thị các tùy chọn đã lỗi thời (như SSLv3 hoặc RC4). Máy chủ đồng ý sử dụng tiêu chuẩn yếu hơn này, cho phép kẻ tấn công giải mã và nghe lén lưu lượng truy cập phiên làm việc.
 
-## 🛡️ Biện pháp phòng thủ
+## Biện pháp phòng thủ
 - **Tóm tắt**: Cấu hình các máy chủ web để từ chối các phiên bản TLS yếu và các thuật toán mã hóa không an toàn, thực thi các giao thức hiện đại (TLS 1.2/1.3), và triển khai HSTS.
 - **Các bước chi tiết**:
   - Cấu hình các máy chủ web để chỉ chấp nhận TLS 1.2 và TLS 1.3, vô hiệu hóa SSLv3, TLS 1.0 và TLS 1.1.
@@ -54,7 +58,12 @@ Kẻ tấn công chèn chính mình làm kẻ đứng giữa (MitM). Trong quá 
   - Sử dụng Giá trị Bộ Cipher Tín hiệu Dự phòng TLS (TLS_FALLBACK_SCSV) để ngăn chặn các cuộc tấn công hạ cấp giao thức.
   - Cấu hình cookie phiên làm việc với các cờ Secure và HttpOnly để đảm bảo các định danh phiên không bao giờ được gửi qua các kênh HTTP không được mã hóa.
 
-## 💻 Code Example
+### Các tấn công downgrade nổi tiếng:
+- **POODLE** (Padding Oracle On Downgraded Legacy Encryption): Khai thác SSL 3.0 CBC mode padding oracle. Attacker ép client và server dùng SSL 3.0 để decrypt session.
+- **BEAST** (Browser Exploit Against SSL/TLS): Tấn công TLS 1.0 CBC IV predictability, dùng chosen-plaintext attack để decrypt.
+- **DROWN** (Decrypting RSA with Obsolete and Weakened eNcryption): Khai thác SSLv2 export-grade cipher. Nếu server hỗ trợ SSLv2, TLS kết nối mới cũng bị ảnh hưởng.
+
+## Code Example
 ```configuration
 # Secure TLS and HSTS configuration in Nginx
 server {
@@ -76,7 +85,18 @@ server {
 }
 ```
 
-## 📚 Ghi chú kỹ thuật & Nguồn tham khảo
-- **Trạng thái kiểm định**: FIXED
-- **Ghi chú kỹ thuật**: Đã sửa các khối mã bị trùng lặp trên Slide 5. Đã cập nhật bộ cipher cấu hình SSL của Nginx để bao gồm các cipher tương thích với TLS 1.2, khắc phục lỗi kết nối tiềm ẩn cho các máy khách cũ hơn trong khi vẫn duy trì tính bảo mật cao.
+
+## Xem thêm
+- [DNS Poisoning](../dns-poisoning/) — Xem thêm bài học về DNS Poisoning.
+
+## Nguồn tham khảo
 - **Nguồn tham khảo**: OWASP A02:2021-Cryptographic Failures, CWE-327 (Use of a Broken or Risky Cryptographic Algorithm)
+
+## Giải thích thuật ngữ
+- **TLS (Transport Layer Security)**: Giao thức bảo mật giúp mã hóa thông tin truyền tải trên Internet, đảm bảo dữ liệu không bị đọc trộm hay sửa đổi trên đường đi.
+- **TLS Handshake**: Quá trình bắt tay TLS, là giai đoạn khởi đầu của một kết nối an toàn, nơi máy khách và máy chủ thương lượng phiên bản giao thức, xác thực chứng chỉ số và thiết lập các khóa mã hóa.
+- **Cipher Suite**: Bộ thuật toán mã hóa, bao gồm một tập hợp các quy tắc và thuật toán mật mã dùng để thiết lập kết nối an toàn (như thuật toán trao đổi khóa, thuật toán mã hóa dữ liệu, thuật toán kiểm tra tính toàn vẹn).
+- **Symmetric Encryption (Mã hóa đối xứng)**: Phương pháp mã hóa sử dụng duy nhất một khóa bí mật chung cho cả quá trình mã hóa (khóa dữ liệu) và giải mã (mở dữ liệu). Xử lý rất nhanh và hiệu quả với lượng dữ liệu lớn.
+- **Asymmetric Encryption (Mã hóa bất đối xứng)**: Phương pháp mã hóa sử dụng một cặp khóa liên kết với nhau: khóa công khai (Public Key - chia sẻ rộng rãi) để mã hóa và khóa bí mật (Private Key - giữ kín) để giải mã. Thường dùng trong giai đoạn xác thực và trao đổi khóa ban đầu.
+- **MitM (Man-in-the-Middle)**: Tấn công kẻ đứng giữa, là hình thức tấn công mà kẻ xấu bí mật can thiệp, nghe lén hoặc sửa đổi thông tin truyền tải giữa hai bên đang giao tiếp trực tiếp với nhau.
+- **HSTS (HTTP Strict Transport Security)**: Một chính sách bảo mật web buộc các trình duyệt web luôn sử dụng kết nối HTTPS an toàn thay vì HTTP thông thường, giúp chống lại các cuộc tấn công hạ cấp.

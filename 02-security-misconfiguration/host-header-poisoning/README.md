@@ -1,11 +1,11 @@
 # Host Header Poisoning
 
-> **OWASP Top 10:2025**: A02:2025 – Security Misconfiguration | **CWE**: CWE-644 (Improper Handling of HTTP Headers) | **Phân loại**: Request Attacks
+> **CWE**: CWE-644 (Improper Handling of HTTP Headers) | **Phân loại**: Security Misconfiguration
 
-## 🧱 Kiến thức Nền tảng
-Tấn công đầu độc Host Header (Host Header Poisoning) phát sinh từ việc cấu hình sai hoặc thiếu kiểm tra giá trị của HTTP Host header trên máy chủ và ứng dụng. Khi một yêu cầu HTTP được gửi đi, nó bắt buộc phải chứa một tiêu đề Host để chỉ ra tài nguyên đang được yêu cầu nằm ở tên miền nào. Để hiểu cơ chế của lỗ hổng này, chúng ta cần nắm rõ:
-- **HTTP Host Header**: Đây là một tiêu đề HTTP bắt buộc từ phiên bản HTTP/1.1. Khi một trình duyệt gửi yêu cầu đến máy chủ (ví dụ: `GET /index.html`), tiêu đề `Host: example.com` giúp máy chủ biết người dùng muốn truy cập trang web nào. Do tiêu đề này được gửi trực tiếp từ client, kẻ tấn công có thể dễ dàng thay đổi giá trị của nó (ví dụ thành `Host: evil.com`) trước khi gửi lên máy chủ.
-- **Virtual Hosting (Lưu trữ ảo)**: Đây là một kỹ thuật cho phép một máy chủ vật lý duy nhất (với một địa chỉ IP duy nhất) lưu trữ và phục vụ nhiều trang web với các tên miền khác nhau (ví dụ: `site1.com`, `site2.com`). Khi có yêu cầu gửi tới địa chỉ IP đó, máy chủ web (như Apache hoặc Nginx) sẽ đọc giá trị trong `Host` header để định tuyến yêu cầu đó đến đúng thư mục chứa mã nguồn của trang web tương ứng. Nếu máy chủ web không được cấu hình chặt chẽ để từ chối các giá trị `Host` lạ, hoặc ứng dụng web tự động sử dụng giá trị `Host` động này để xây dựng các liên kết tuyệt đối (như liên kết đổi mật khẩu), kẻ tấn công có thể lừa ứng dụng tạo ra các liên kết độc hại trỏ về máy chủ của chúng, dẫn đến rò rỉ token khôi phục tài khoản.
+## Kiến thức Nền tảng
+Hãy tưởng tượng bạn gửi một lá thư chuyển phát nhanh qua bưu điện. Ở mặt trước lá thư, bưu điện yêu cầu bạn phải ghi rõ thông tin ở ô "Tên miền/Địa chỉ người nhận" (đây chính là **Host Header**). Bưu điện sử dụng ô thông tin này để biết phải chuyển lá thư đó đến tòa nhà nào. Tuy nhiên, nếu nhân viên bưu điện quá ngây thơ, khi lá thư đến nơi, họ lại dùng chính địa chỉ do bạn tự viết tay ở ô "Host Header" để in lên toàn bộ các giấy tờ phản hồi, biên lai chuyển tiền hoặc phiếu hẹn gặp lại của tòa nhà mà không thèm đối chiếu xem địa chỉ đó có thuộc hệ thống chi nhánh chính thức của họ hay không. Kẻ xấu có thể điền một địa chỉ mạo danh vào ô này, lừa bưu điện gửi các phản hồi quan trọng chứa thông tin mật thẳng về hòm thư của chúng.
+
+Trong giao thức HTTP, **Host Header** là một tiêu đề bắt buộc từ phiên bản HTTP/1.1. Khi bạn truy cập một trang web, trình duyệt sẽ tự động gửi tiêu đề này để thông báo cho máy chủ biết bạn đang muốn truy cập tên miền nào. Điều này cho phép một máy chủ vật lý duy nhất có thể chạy song song nhiều trang web khác nhau (được gọi là **Virtual Hosting - Lưu trữ ảo**). Máy chủ web (như Nginx hay Apache) sẽ đọc Host Header để dẫn đường (định tuyến) yêu cầu của bạn đến đúng thư mục chứa mã nguồn. Lỗ hổng xảy ra khi ứng dụng web tin tưởng hoàn toàn vào giá trị Host Header do người dùng gửi lên để tự động tạo ra các đường link tuyệt đối (như liên kết đổi mật khẩu, link kích hoạt tài khoản) mà không xác thực lại.
 
 ```configuration
 # Nginx configuration for secure virtual hosting
@@ -31,16 +31,18 @@ server {
 }
 ```
 
-## 🔍 Mô tả lỗ hổng
-Tấn công đầu độc Host Header (Host Header Poisoning) tận dụng việc ứng dụng web tin cậy một cách mù quáng vào giá trị của header 'Host' trong yêu cầu HTTP. Do header này do phía máy khách gửi lên và hoàn toàn có thể bị chỉnh sửa, việc sử dụng nó để sinh các liên kết tuyệt đối (như email khôi phục mật khẩu) sẽ dẫn tới rủi ro nghiêm trọng. Kẻ tấn công có thể thay thế Host header bằng tên miền do chúng kiểm soát, khiến hệ thống gửi email khôi phục mật khẩu chứa liên kết dẫn tới máy chủ của kẻ tấn công, từ đó đánh cắp mã khôi phục.
+## Mô tả lỗ hổng
+Lỗ hổng **Đầu độc Host Header** (Host Header Poisoning) xảy ra khi ứng dụng web tin cậy một cách mù quáng vào giá trị của header Host trong yêu cầu HTTP để tạo ra các liên kết hoặc thực thi logic hệ thống. Do header này do client gửi lên và hoàn toàn có thể bị chỉnh sửa bởi kẻ tấn công, đây là một điểm yếu cấu hình cực kỳ nguy hiểm.
 
-## ⚔️ Cơ chế tấn công
+Kẻ tấn công có thể thay đổi giá trị Host Header thành một tên miền độc hại do chúng sở hữu (ví dụ: từ `bank.com` thành `evil-bank.com`) khi gửi yêu cầu khôi phục mật khẩu cho tài khoản của bạn. Máy chủ web, do thiếu cấu hình bảo vệ, vẫn xử lý yêu cầu và gửi một email khôi phục mật khẩu chính chủ đến hộp thư của bạn. Tuy nhiên, đường link bên trong email lại bị "đầu độc" và trỏ về trang web giả mạo của kẻ tấn công: `https://evil-bank.com/reset?token=secret_code`. Nếu bạn không chú ý và click vào link, mã khóa đổi mật khẩu (token) của bạn sẽ ngay lập tức bị gửi thẳng đến máy chủ của kẻ tấn công, giúp chúng dễ dàng chiếm đoạt tài khoản của bạn.
+
+## Cơ chế tấn công
 Bước 1: Kẻ tấn công phát hiện chức năng khôi phục mật khẩu của ứng dụng sinh liên kết khôi phục bằng cách lấy giá trị trực tiếp từ HTTP Host Header của yêu cầu.
 Bước 2: Kẻ tấn công gửi yêu cầu khôi phục mật khẩu cho tài khoản của nạn nhân (ví dụ: `vic@email.com`), đồng thời sửa đổi Host Header trong HTTP request thành tên miền độc hại do mình kiểm soát (ví dụ: `evil.com`).
 Bước 3: Máy chủ xử lý yêu cầu và tạo email khôi phục mật khẩu gửi cho nạn nhân chứa liên kết có dạng `https://evil.com/reset?token=XYZ`.
 Bước 4: Nạn nhân nhận email, tin tưởng vào nội dung và nhấn vào link khôi phục mật khẩu. Yêu cầu chứa token khôi phục sẽ được gửi tới máy chủ `evil.com`, giúp kẻ tấn công đánh cắp token và đổi mật khẩu tài khoản.
 
-## 🛡️ Biện pháp phòng thủ
+## Biện pháp phòng thủ
 - **Tóm tắt**: Prevent Host Header Poisoning by configuring web servers to reject unrecognized host headers and avoiding dynamic host header references in application code.
 - **Các bước chi tiết**:
   - Configure the web server with a default server block that drops requests containing invalid or missing Host headers.
@@ -48,7 +50,7 @@ Bước 4: Nạn nhân nhận email, tin tưởng vào nội dung và nhấn và
   - Avoid relying on the incoming HTTP Host header for generating password-reset links, redirects, or absolute URLs within application code.
   - Configure load balancers and reverse proxies to normalize and validate Host and X-Forwarded-Host headers before forwarding to backend apps.
 
-## 💻 Code Example
+## Code Example
 ```configuration
 # Hardened Nginx virtual host configuration
 # 1. Default server block to reject unrecognized hostnames
@@ -70,7 +72,18 @@ server {
 }
 ```
 
-## 📚 Ghi chú kỹ thuật & Nguồn tham khảo
-- **Trạng thái kiểm định**: PASS
-- **Ghi chú kỹ thuật**: Trong Milestone 2, bài học này có trạng thái PASS. Mã nguồn Python ví dụ ngăn chặn việc giả mạo Host header bằng cách kiểm tra giá trị Host với danh sách host được cho phép cố định hoặc cấu hình máy chủ web chỉ chấp nhận các Host được cấu hình cụ thể.
+
+## Xem thêm
+- [Clickjacking](../clickjacking/) — Xem thêm bài học về Clickjacking.
+
+## Nguồn tham khảo
 - **Nguồn tham khảo**: OWASP A03:2021, CWE-644, PortSwigger Web Security Academy
+
+## Giải thích thuật ngữ
+- **HTTP Host Header**: Tiêu đề HTTP bắt buộc, chứa tên miền của máy chủ mà client muốn gửi yêu cầu tới.
+- **Virtual Hosting**: Công nghệ cho phép một máy chủ vật lý đơn lẻ lưu trữ và chạy cùng lúc nhiều trang web với các tên miền khác nhau.
+- **Header (Tiêu đề HTTP)**: Các dòng thông tin bổ sung được gửi kèm theo yêu cầu hoặc phản hồi HTTP để cung cấp ngữ cảnh về cuộc giao tiếp web.
+- **Absolute URL (Liên kết tuyệt đối)**: Đường dẫn đầy đủ chứa cả giao thức và tên miền (ví dụ: `https://example.com/page.html`), khác với đường dẫn tương đối (relative path).
+- **Token**: Một chuỗi ký tự ngẫu nhiên duy nhất được hệ thống sinh ra để xác thực một hành động cụ thể (ví dụ: mã reset mật khẩu, mã xác nhận email).
+- **Load Balancer (Bộ cân bằng tải)**: Thiết bị hoặc phần mềm phân phối lưu lượng mạng đến nhiều máy chủ phía sau để tối ưu hóa hiệu năng và độ tin cậy.
+- **Reverse Proxy**: Máy chủ trung gian đứng trước các máy chủ web nội bộ để nhận yêu cầu từ client, xử lý bảo mật hoặc cân bằng tải trước khi chuyển tiếp vào bên trong.

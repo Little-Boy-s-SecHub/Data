@@ -1,12 +1,10 @@
 # HTTP Parameter Pollution (HPP)
 
-> **OWASP Top 10:2025**: A05 – Injection | **CWE**: CWE-235 | **Nguồn**: OWASP, Luca Carettoni & Stefano di Paola
+> **CWE**: CWE-235 | **Phân loại**: Injection
 
-## 🧱 Kiến thức Nền tảng
+## Kiến thức Nền tảng
 
-Khi trình duyệt gửi HTTP request, tham số (parameter) được truyền qua URL query string hoặc request body. Theo chuẩn HTTP, **không có quy định rõ ràng** về cách xử lý khi cùng một tham số xuất hiện nhiều lần. Mỗi web server và framework xử lý tình huống này **khác nhau hoàn toàn**.
-
-Ví dụ request với tham số trùng lặp:
+Khi bạn gửi một yêu cầu lên trang web (như tìm kiếm sản phẩm), thông tin thường được gửi kèm dưới dạng các tham số trên đường dẫn (ví dụ: `?category=electronics`). Nhưng điều kỳ lạ là trong thế giới công nghệ, các ngôn ngữ và máy chủ khác nhau lại có cách xử lý rất khác nhau khi gặp hai tham số trùng tên trong cùng một yêu cầu (ví dụ: `?category=electronics&category=books`). PHP sẽ chỉ lấy giá trị cuối cùng, ASP.NET lại nối chúng lại bằng dấu phẩy, còn Python Flask hay Java Servlet thì chỉ lấy giá trị đầu tiên. Sự bất đồng ngôn ngữ này giống như việc mỗi phòng ban trong một công ty hiểu một mệnh lệnh theo cách riêng của mình.
 
 ```http
 GET /search?category=electronics&category=books HTTP/1.1
@@ -39,17 +37,11 @@ Host: shop.example.com
 
 Sự khác biệt này tạo ra mâu thuẫn khi ứng dụng sử dụng **nhiều lớp xử lý** (ví dụ: WAF viết bằng Java đứng trước backend PHP). WAF kiểm tra tham số đầu tiên (Java lấy first), nhưng backend PHP lại dùng tham số cuối cùng — kẻ tấn công lợi dụng để bypass.
 
-## 🔍 Mô tả lỗ hổng
+## Mô tả lỗ hổng
 
-HTTP Parameter Pollution (HPP) là kỹ thuật tấn công bằng cách **gửi nhiều tham số cùng tên** trong một HTTP request. Có hai dạng chính:
+Lỗ hổng HTTP Parameter Pollution (HPP) xảy ra khi kẻ tấn công lợi dụng sự không đồng nhất này để "đầu độc" các tham số gửi đi. Hãy tưởng tượng hệ thống bảo vệ (WAF) của bạn dùng Java để kiểm tra tính an toàn của tham số đầu tiên, nhưng máy chủ xử lý logic đằng sau lại dùng PHP và chỉ đọc tham số cuối cùng. Kẻ tấn công có thể gửi một tham số an toàn ở đầu để đánh lừa WAF, nhưng lại giấu tham số độc hại ở cuối để máy chủ backend thực thi. Điều này cho phép kẻ xấu dễ dàng vượt qua các tường lửa bảo mật, thay đổi logic giao dịch (như sửa đổi số tiền hay tài khoản nhận), hoặc thực hiện các hành vi gian lận khác mà hệ thống không hề hay biết.
 
-**Server-Side HPP:** Kẻ tấn công inject tham số bổ sung để thay đổi logic phía server — bypass validation, thay đổi giá trị giao dịch, hoặc truy cập trái phép.
-
-**Client-Side HPP:** Kẻ tấn công thao túng URL để inject tham số vào link/form được server render — ảnh hưởng hành vi phía client.
-
-Lỗ hổng này đặc biệt nguy hiểm trong hệ thống có **proxy, WAF, hoặc middleware** đứng trước application server, vì mỗi lớp có thể hiểu tham số khác nhau.
-
-## ⚔️ Cơ chế tấn công
+## Cơ chế tấn công
 
 **Tấn công 1 — Bypass WAF:**
 
@@ -110,39 +102,15 @@ def oauth():
 <a href="/share?utm_source=social&lang="><script>alert(1)</script>">Share</a>
 ```
 
-## 🛡️ Biện pháp phòng thủ
+## Biện pháp phòng thủ
 
-1. **Chọn rõ ràng cách xử lý tham số trùng** — reject hoặc chỉ lấy giá trị đầu tiên:
-   ```python
-   # SECURE: Explicitly handle duplicate parameters
-   from werkzeug.exceptions import BadRequest
-   
-   def get_single_param(request, name):
-       """Reject requests with duplicate parameters"""
-       values = request.args.getlist(name)
-       if len(values) > 1:
-           raise BadRequest(f"Duplicate parameter: {name}")
-       return values[0] if values else None
-   ```
+- **Tóm tắt**: Kiểm soát và xác thực nghiêm ngặt các tham số trùng lặp trong yêu cầu HTTP để tránh sự bất nhất giữa các lớp xử lý.
+- **Các bước chi tiết**:
+  - Chọn rõ ràng cách xử lý tham số trùng — reject hoặc chỉ lấy giá trị đầu tiên.
+  - Thực hiện kiểm tra và xác thực ở cả tầng WAF và tầng backend.
+  - Sử dụng các thư viện xây dựng URL và phân tích tham số an toàn.
 
-2. **URL-encode khi xây dựng URL** — không nối chuỗi trực tiếp:
-   ```python
-   # SECURE: Use proper URL encoding library
-   from urllib.parse import urlencode, quote
-   
-   def build_redirect_url(callback):
-       params = {
-           "callback": callback,  # Properly encoded, & becomes %26
-           "client_id": "myapp"
-       }
-       return "https://auth.provider.com/authorize?" + urlencode(params)
-   ```
-
-3. **Đồng nhất parser** giữa WAF và backend — đảm bảo cả hai lớp hiểu tham số giống nhau.
-
-4. **Input validation** — whitelist giá trị hợp lệ cho mỗi tham số.
-
-## 💻 Code Example
+## Code Example
 
 ```python
 # ❌ VULNERABLE: String concatenation allows HPP
@@ -170,8 +138,21 @@ def redirect_handler():
     return redirect(f"/dashboard?{params}")
 ```
 
-## 📚 Nguồn tham khảo
+## Xem thêm
+
+- [SQL Injection](../sql-injection/) — Tấn công tiêm lệnh SQL qua các tham số.
+
+## Nguồn tham khảo
+
 - PortSwigger: https://portswigger.net/web-security/request-smuggling
 - OWASP: https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/04-Testing_for_HTTP_Parameter_Pollution
 - CWE: https://cwe.mitre.org/data/definitions/235.html
 - Original Paper: https://owasp.org/www-pdf-archive/AppsecEU09_CarssoniDiPaola_v0.8.pdf
+
+## Giải thích thuật ngữ
+
+- **HPP (HTTP Parameter Pollution)**: Ô nhiễm tham số HTTP bằng cách gửi nhiều tham số trùng tên.
+- **WAF (Web Application Firewall)**: Tường lửa bảo vệ ứng dụng web khỏi các cuộc tấn công phổ biến.
+- **Query String**: Phần tham số đi kèm phía sau dấu hỏi chấm trên URL.
+- **Backend**: Hệ thống máy chủ xử lý dữ liệu và logic bên dưới của trang web.
+- **Concatenate**: Phép toán ghép nối các chuỗi ký tự lại với nhau.

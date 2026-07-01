@@ -1,12 +1,10 @@
 # Server-Side Template Injection (SSTI)
 
-> **OWASP Top 10:2025**: A05 – Injection | **CWE**: CWE-1336 | **Nguồn**: PortSwigger, HackTricks
+> **CWE**: CWE-1336 | **Phân loại**: Injection
 
-## 🧱 Kiến thức Nền tảng
+## Kiến thức Nền tảng
 
-Template engine là thành phần phổ biến trong web development, cho phép tách biệt logic xử lý và giao diện hiển thị. Các template engine phổ biến bao gồm: **Jinja2** (Python/Flask), **Twig** (PHP/Symfony), **Freemarker** (Java/Spring), **Mako** (Python), **Pebble** (Java), **Handlebars** (Node.js).
-
-Template engine hoạt động bằng cách nhận một template string chứa các placeholder, sau đó **render** bằng cách thay thế placeholder bằng dữ liệu thực tế. Quá trình render này chạy trên **server-side**, nghĩa là template engine có quyền truy cập vào môi trường server.
+Để tạo ra các trang web động đẹp mắt một cách nhanh chóng, lập trình viên sử dụng các công cụ gọi là Template Engine (như Jinja2 trong Python, Twig trong PHP, hay Freemarker trong Java). Hãy tưởng tượng Template Engine giống như một khuôn mẫu thư gửi khách hàng có sẵn các ô trống dạng `{{ tên_khách_hàng }}`. Công cụ này sẽ tự động lấy tên thực tế để điền vào khuôn trước khi gửi đi. Khi hoạt động bình thường, dữ liệu của người dùng được truyền riêng biệt dưới dạng tham số nên cực kỳ an toàn, trình duyệt chỉ hiển thị nó dưới dạng văn bản thô.
 
 ```python
 # Normal Jinja2 template rendering in Flask
@@ -24,16 +22,11 @@ def hello(name):
 
 Điểm quan trọng: khi user input được truyền dưới dạng **data** vào template, nó an toàn. Vấn đề phát sinh khi user input được **nhúng trực tiếp vào template string** trước khi render — lúc này input trở thành một phần của template code và được engine thực thi.
 
-## 🔍 Mô tả lỗ hổng
+## Mô tả lỗ hổng
 
-Server-Side Template Injection (SSTI) xảy ra khi ứng dụng nhúng user input trực tiếp vào template string, cho phép attacker chèn các template directives. Vì template engine thường có khả năng truy cập object model của ngôn ngữ lập trình bên dưới, SSTI có thể leo thang thành **Remote Code Execution (RCE)**.
+Lỗ hổng Server-Side Template Injection (SSTI) xảy ra khi lập trình viên ghép nối trực tiếp chuỗi thông tin của người dùng vào cấu trúc của khuôn mẫu trước khi mang đi xử lý, thay vì truyền nó dưới dạng dữ liệu riêng biệt. Việc này giống như cho phép người nhận thư tự viết thêm các hướng dẫn logic vào chính khuôn mẫu của bạn. Kẻ tấn công có thể chèn các cú pháp lập trình đặc biệt vào ô nhập liệu để bắt Template Engine thực thi. Vì các Template Engine này chạy trực tiếp trên máy chủ và có quyền truy cập vào các hàm lập trình cốt lõi bên dưới, kẻ tấn công có thể lợi dụng để đọc trộm các file bí mật, lấy cắp biến môi trường, hoặc thực thi lệnh hệ thống để chiếm quyền điều khiển hoàn toàn máy chủ (RCE).
 
-Mức độ nghiêm trọng rất cao vì:
-- Template engine chạy với **quyền của web server**
-- Có thể đọc file hệ thống, biến môi trường, thực thi command
-- Nhiều engine cho phép truy cập trực tiếp vào runtime classes
-
-## ⚔️ Cơ chế tấn công
+## Cơ chế tấn công
 
 ### Bước 1: Phát hiện SSTI
 
@@ -110,15 +103,17 @@ def profile():
 # /profile?name={{config.__class__.__init__.__globals__['os'].popen('cat+/etc/passwd').read()}}
 ```
 
-## 🛡️ Biện pháp phòng thủ
+## Biện pháp phòng thủ
 
-1. **Không bao giờ nhúng user input vào template string**: Truyền dữ liệu qua context variables.
-2. **Sandbox environment**: Sử dụng Jinja2 `SandboxedEnvironment` để giới hạn class/method access.
-3. **Logic-less templates**: Chọn template engine không cho phép thực thi code (Mustache, Handlebars).
-4. **WAF rules**: Chặn các pattern như `{{`, `${`, `<%`, `__class__`, `__mro__`.
-5. **Tách biệt template từ user content**: Nếu cần template tùy chỉnh, chạy trong container isolated.
+- **Tóm tắt**: Truyền dữ liệu người dùng thông qua các biến ngữ cảnh (context variables) thay vì nhúng trực tiếp vào chuỗi template.
+- **Các bước chi tiết**:
+  - Không bao giờ nhúng user input vào template string: Truyền dữ liệu qua context variables.
+  - Sandbox environment: Sử dụng Jinja2 `SandboxedEnvironment` để giới hạn class/method access.
+  - Logic-less templates: Chọn template engine không cho phép thực thi code (Mustache, Handlebars).
+  - WAF rules: Chặn các pattern như `{{`, `${`, `<%`, `__class__`, `__mro__`.
+  - Tách biệt template từ user content: Nếu cần template tùy chỉnh, chạy trong container isolated.
 
-## 💻 Code Example
+## Code Example
 
 ```python
 # ❌ VULNERABLE: User input embedded in template string
@@ -160,8 +155,21 @@ def custom_template():
         return "Invalid template", 400
 ```
 
-## 📚 Nguồn tham khảo
+## Xem thêm
+
+- [Remote Code Execution](../../10-exceptional-conditions/remote-code-execution/) — Khái niệm thực thi mã từ xa trên máy chủ đích, vốn là hậu quả phổ biến nhất khi khai thác thành công lỗ hổng SSTI.
+
+## Nguồn tham khảo
+
 - PortSwigger: https://portswigger.net/web-security/server-side-template-injection
 - HackTricks – SSTI: https://book.hacktricks.wiki/en/pentesting-web/ssti-server-side-template-injection/index.html
 - CWE-1336: https://cwe.mitre.org/data/definitions/1336.html
 - PayloadsAllTheThings – SSTI: https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/Server%20Side%20Template%20Injection
+
+## Giải thích thuật ngữ
+
+- **SSTI (Server-Side Template Injection)**: Lỗ hổng tiêm cấu trúc mã của template engine vào ứng dụng để máy chủ biên dịch.
+- **Template Engine**: Bộ công cụ giúp tách biệt phần giao diện HTML và logic xử lý dữ liệu của lập trình viên.
+- **Render**: Quá trình đưa dữ liệu thực tế ghép vào khuôn mẫu để tạo nên trang web hoàn chỉnh.
+- **Object Model**: Sơ đồ các đối tượng lập trình có thể truy cập được từ bên trong ngôn ngữ.
+- **RCE**: Thực thi mã từ xa, cho phép chiếm quyền kiểm soát máy chủ.

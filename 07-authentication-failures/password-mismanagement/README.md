@@ -1,13 +1,15 @@
 # Password Mismanagement
 
-> **OWASP Top 10:2025**: A07:2025 – Authentication Failures | **CWE**: CWE-916 (Use of Password Hash with Insufficient Computational Effort) | **Phân loại**: Authentication
+> **CWE**: CWE-916 (Use of Password Hash with Insufficient Computational Effort) | **Phân loại**: Authentication
 
-## 🧱 Kiến thức Nền tảng
-Trong quản lý mật khẩu, việc lưu trữ thông tin xác thực an toàn đòi hỏi sự hiểu biết sâu sắc về các khái niệm mật mã cơ bản. Đầu tiên, cần phân biệt rõ **Cryptographic Hashing (băm mật mã)** và **Encryption (mã hóa)**. Băm là hàm số một chiều (one-way function) biến đổi đầu vào thành một chuỗi có độ dài cố định, không thể đảo ngược để tìm lại bản rõ ban đầu. Ngược lại, mã hóa là quá trình hai chiều (two-way function) cho phép chuyển đổi dữ liệu thành bản mã và có thể giải mã ngược lại bằng một khóa bí mật thích hợp. Do đó, mật khẩu tuyệt đối không được mã hóa mà bắt buộc phải băm.
+## Kiến thức Nền tảng
+Hãy tưởng tượng bạn điều hành một câu lạc bộ và cần lưu trữ danh sách mật khẩu của các thành viên.
+- Nếu bạn chọn cách **mã hóa (Encryption)**, giống như việc bạn cất danh sách mật khẩu vào một chiếc hộp sắt và khóa lại bằng một chiếc chìa khóa. Khi cần xác thực, bạn mở hộp ra để xem mật khẩu gốc. Cách này có một điểm yếu chí tử: nếu kẻ trộm ăn cắp được chiếc chìa khóa hộp sắt, chúng sẽ đọc được toàn bộ mật khẩu của tất cả mọi người.
+- Vì vậy, bạn nên chọn cách **băm mật mã (Cryptographic Hashing)**. Băm giống như một cỗ máy hủy tài liệu một chiều: bạn đút mật khẩu vào, cỗ máy sẽ nghiền nát và nhào trộn nó thành một đống bột giấy có hình thù cố định. Bạn không thể ghép đống bột giấy đó trở lại thành tờ giấy ban đầu. Khi thành viên đăng nhập, bạn chỉ cần bỏ mật khẩu họ nhập vào máy hủy xem đống bột giấy tạo ra có giống hệt đống bột giấy bạn đang lưu giữ hay không.
 
-Để tăng cường độ an toàn của chuỗi băm, cơ chế **Salt (muối)** được sử dụng. Salt là một chuỗi dữ liệu ngẫu nhiên được sinh ra cho mỗi người dùng và được ghép vào mật khẩu trước khi băm. Salt giúp ngăn chặn các cuộc tấn công sử dụng bảng băm tính sẵn (Rainbow Table) và đảm bảo rằng hai người dùng có cùng mật khẩu vẫn có chuỗi băm hoàn toàn khác nhau trong cơ sở dữ liệu.
+Để đống bột giấy này an toàn hơn nữa, bạn trộn thêm vào giấy một nhúm **muối (Salt)** — là các ký tự ngẫu nhiên duy nhất cho mỗi người dùng trước khi băm. Việc này giúp ngăn kẻ trộm dùng các bảng tính sẵn mật khẩu phổ biến (**Rainbow Table**) để dò ngược lại mật khẩu gốc.
 
-Bên cạnh đó, các thuật toán băm hiện đại như **Argon2** và **bcrypt** tích hợp tham số **Work Factor (hệ số công việc)**. Đây là một cấu hình điều chỉnh độ phức tạp tính toán (chi phí CPU, bộ nhớ hoặc số vòng lặp). Bằng cách tăng Work Factor, nhà phát triển làm chậm tốc độ tính toán của thuật toán một cách có chủ đích, từ đó vô hiệu hóa hoặc làm tăng đáng kể chi phí kinh tế của kẻ tấn công khi chúng cố gắng thực hiện tấn công vét cạn (brute-force) bằng phần cứng chuyên dụng như GPU hay chip ASIC.
+Tuy nhiên, các máy tính hiện đại ngày nay có tốc độ tính toán cực kỳ nhanh. Chúng có thể chạy thử hàng tỷ phép băm MD5 hay SHA256 mỗi giây để tìm ra mật khẩu gốc. Do đó, các thuật toán băm hiện đại như **Argon2** hay **bcrypt** giới thiệu thêm khái niệm **Work Factor (Hệ số công việc)**. Đây là nút vặn điều chỉnh độ phức tạp: bạn tăng Work Factor lên thì cỗ máy băm sẽ hoạt động chậm đi một chút (ví dụ mất 0.1 giây thay vì 0.000001 giây). Đối với người dùng bình thường, 0.1 giây là không đáng kể, nhưng đối với tin tặc muốn thử hàng triệu mật khẩu bằng siêu máy tính, việc này sẽ làm chậm tốc độ của chúng đến mức không thể thực hiện được.
 
 ```python
 import bcrypt
@@ -35,23 +37,33 @@ def verify_password_securely(password: str, hashed: bytes) -> bool:
     return bcrypt.checkpw(b64_hash, hashed)
 ```
 
-## 🔍 Mô tả lỗ hổng
-Quản lý mật khẩu yếu kém (Password Mismanagement) bao gồm các sai sót trong việc lưu trữ và xác thực mật khẩu của người dùng. Các lỗi phổ biến bao gồm lưu mật khẩu dưới dạng bản rõ, sử dụng các thuật toán băm yếu (như MD5, SHA1), hoặc triển khai salt/pepper sai quy cách. Điều này khiến mật khẩu dễ dàng bị bẻ khóa thông qua tấn công vét cạn hoặc bảng tra cứu (rainbow table) nếu cơ sở dữ liệu bị rò rỉ.
+## Mô tả lỗ hổng
+Lỗ hổng Quản lý mật khẩu yếu kém (Password Mismanagement) xảy ra khi ứng dụng lưu trữ mật khẩu của người dùng ở dạng văn bản thô (cleartext), sử dụng thuật toán băm cũ và chạy quá nhanh (như MD5, SHA1), hoặc tự chế ra các công thức băm/ghép muối sai quy chuẩn bảo mật.
 
-## ⚔️ Cơ chế tấn công
+Mối nguy hiểm lớn nhất của lỗ hổng này xuất hiện khi cơ sở dữ liệu của ứng dụng bị rò rỉ hoặc bị hack. Kẻ tấn công có thể dễ dàng đọc trực tiếp mật khẩu của người dùng (nếu lưu bản rõ), hoặc sử dụng các công cụ bẻ khóa tự động bằng card đồ họa (GPU) để giải mã ngược hàng triệu mật khẩu được băm bằng thuật toán yếu chỉ trong vài giờ, từ đó chiếm đoạt tài khoản của người dùng trên hệ thống của bạn và trên cả các hệ thống khác mà họ tái sử dụng mật khẩu.
+
+## Cơ chế tấn công
 Bước 1: Nhà phát triển lưu trữ mật khẩu bằng cách ghép trực tiếp mật khẩu với một chuỗi pepper cố định rồi băm trực tiếp qua thư viện bcrypt: `bcrypt.hashpw(pepper + password, salt)`.
 Bước 2: Do thư viện bcrypt có giới hạn xử lý độ dài chuỗi đầu vào tối đa là 72 byte, bất kỳ ký tự nào vượt quá giới hạn này sẽ bị bỏ qua khi tính toán mã băm.
 Bước 3: Kẻ tấn công phát hiện ra lỗi này và nhận thấy nếu mật khẩu của nạn nhân là `A` dài 80 ký tự, chúng chỉ cần đoán đúng 72 ký tự đầu là có thể đăng nhập thành công mà không cần 8 ký tự cuối, làm giảm entropy và độ an toàn của mật khẩu.
 
-## 🛡️ Biện pháp phòng thủ
+## Biện pháp phòng thủ
 - **Tóm tắt**: Password mismanagement covers insecure storage, weak hashing, and lack of complexity policies. Mitigation involves using strong, modern cryptographic hashing algorithms (like Argon2id or bcrypt) with random salts, enforcing password complexity, and using secure communication channels.
 - **Các bước chi tiết**:
   - Hash passwords using strong, adaptive, salted hashing algorithms such as Argon2id or bcrypt with appropriate work factors.
   - Never store passwords in plaintext or using outdated, fast hash algorithms (like MD5, SHA-1, or plain SHA-256).
   - Enforce strong password complexity guidelines, including minimum length and checking against lists of known breached passwords.
-  - Secure all password entry, reset, and recovery flows with HTTPS, and protect authentication endpoints from brute-force attacks via rate limiting.
+  - Bảo vệ toàn bộ luồng nhập, đặt lại và khôi phục mật khẩu bằng HTTPS, đồng thời áp dụng rate limiting cho endpoint xác thực.
 
-## 💻 Code Example
+### Argon2id vs Argon2i vs Argon2d
+Theo RFC 9106, Argon2 có 3 biến thể:
+- **Argon2id** (khuyến nghị): Kết hợp cả hai, chống side-channel và GPU attack. Dùng cho password hashing.
+- **Argon2i**: Chống side-channel attack (cache timing), nhưng yếu hơn trước GPU attack. Dùng cho key derivation.
+- **Argon2d**: Mạnh trước GPU attack nhưng dễ bị side-channel. Không dùng cho môi trường có side-channel risk.
+
+Tham số khuyến nghị (OWASP): memory=64MB, iterations=3, parallelism=4.
+
+## Code Example
 ```python
 from argon2 import PasswordHasher
 
@@ -68,7 +80,16 @@ except Exception:
     print("Invalid password")
 ```
 
-## 📚 Ghi chú kỹ thuật & Nguồn tham khảo
-- **Trạng thái kiểm định**: FIXED
-- **Ghi chú kỹ thuật**: Trong Milestone 2, bài học này đã được chỉnh sửa (FIXED). Sửa đổi lỗi nghiêm trọng khi ghép trực tiếp chuỗi pepper vào mật khẩu trước khi đưa vào bcrypt (combined = pepper + password). Vì bcrypt giới hạn độ dài đầu vào 72 byte, mật khẩu dài sẽ bị cắt cụt làm giảm entropy. Sửa đổi bằng cách thực hiện băm mật khẩu + pepper qua SHA-256 trước, tạo chuỗi băm 32-byte cố định, sau đó mới thực hiện băm qua bcrypt.
+## Xem thêm
+- [Các bài học liên quan trong cùng thư mục](../)
+
+## Nguồn tham khảo
 - **Nguồn tham khảo**: OWASP A02:2021, CWE-916, NIST SP 800-63B
+
+## Giải thích thuật ngữ
+- **Cryptographic Hashing (Băm mật mã)**: Thuật toán chuyển đổi một lượng dữ liệu bất kỳ thành một chuỗi ký tự có độ dài cố định. Đây là quá trình một chiều, không thể đảo ngược từ chuỗi băm để tìm lại dữ liệu gốc.
+- **Encryption (Mã hóa)**: Quá trình chuyển đổi thông tin từ dạng đọc được (bản rõ) sang dạng không đọc được (bản mã) bằng một thuật toán và khóa. Đây là quá trình hai chiều, có thể giải mã ngược lại nếu có khóa chính xác.
+- **Salt (Muối)**: Chuỗi ký tự ngẫu nhiên được thêm vào mật khẩu trước khi băm, đảm bảo rằng ngay cả hai mật khẩu giống nhau cũng sẽ tạo ra hai mã băm khác nhau trong cơ sở dữ liệu, chống lại việc tra cứu bằng bảng băm tính sẵn.
+- **Work Factor (Hệ số công việc / Chi phí)**: Tham số cấu hình xác định số lượng tài nguyên (CPU, bộ nhớ, thời gian) mà máy chủ phải bỏ ra để thực hiện một phép băm, giúp làm chậm quá trình bẻ khóa mật khẩu của kẻ tấn công.
+- **Rainbow Table (Bảng cầu vồng)**: Cơ sở dữ liệu chứa danh sách các mật khẩu phổ biến được tính toán sẵn mã băm tương ứng, dùng để tra cứu nhanh nhằm bẻ khóa mật khẩu đã bị băm.
+- **Argon2id**: Thuật toán băm mật khẩu hiện đại, an toàn nhất hiện nay, được thiết kế để chống lại các cuộc tấn công bẻ khóa bằng phần cứng chuyên dụng (như GPU/ASIC) và các cuộc tấn công kênh kề (side-channel).

@@ -1,15 +1,13 @@
 # Error Handling & Exception Mismanagement
 
-> **OWASP Top 10:2025**: A10:2025 – Server-Side Request Forgery & Insufficient Logging (NEW) | **CWE**: CWE-755 | **Nguồn**: PortSwigger, OWASP, CWE MITRE
+> **CWE**: CWE-755 | **Phân loại**: Insecure Design
 
-## 🧱 Kiến thức Nền tảng
+## Kiến thức Nền tảng
+Hãy tưởng tượng bạn đang lái một chiếc xe hơi hiện đại. Khi động cơ gặp sự cố, hệ thống điều khiển thông minh trên xe sẽ sáng đèn báo lỗi "Check Engine" màu vàng trên táp-lô để bạn biết đường mang xe đi sửa. Chiếc xe hoàn toàn ẩn đi các thông số kỹ thuật phức tạp như áp suất buồng đốt hay lỗi dòng điện cụ thể để tránh làm bạn bối rối. Cơ chế xử lý sự cố này tương tự như **xử lý lỗi (error handling)** trong lập trình. Khi ứng dụng gặp tình huống bất ngờ (như cơ sở dữ liệu bị ngắt kết nối, người dùng nhập chữ vào ô nhập số), nó cần phải phản hồi một cách khéo léo để hệ thống không bị sập hoàn toàn.
 
-Error handling (xử lý lỗi) là cơ chế giúp ứng dụng phản hồi đúng cách khi gặp tình huống bất thường — input không hợp lệ, kết nối database thất bại, file không tồn tại, hoặc lỗi logic. Mọi ngôn ngữ lập trình hiện đại đều hỗ trợ cơ chế exception: `try/catch` (Java, JavaScript, C#), `try/except` (Python), `begin/rescue` (Ruby).
-
-Trong production, ứng dụng phải xử lý lỗi một cách **graceful** — thông báo cho user biết có lỗi xảy ra mà không tiết lộ chi tiết kỹ thuật nội bộ. Hai triết lý xử lý lỗi quan trọng trong bảo mật:
-
-- **Fail-Close (Fail-Secure)**: Khi có lỗi, hệ thống từ chối truy cập. Đây là cách an toàn.
-- **Fail-Open**: Khi có lỗi, hệ thống cho phép truy cập. Đây là cách nguy hiểm.
+Trong bảo mật phần mềm, khi xảy ra lỗi, hệ thống phải tuân theo hai triết lý thiết kế đối nghịch:
+- **Fail-Close (Thất bại thì Đóng/Bảo mật)**: Giống như một chiếc két sắt thông minh, khi hệ thống quét vân tay bị mất điện hoặc gặp lỗi, két sắt sẽ tự động khóa chặt lại để bảo vệ tài sản bên trong. Đây là cách xử lý an toàn và đúng đắn nhất.
+- **Fail-Open (Thất bại thì Mở)**: Ngược lại, nếu khóa cửa từ của một tòa nhà bị lỗi mất điện mà lại tự động mở toang cửa cho bất kỳ ai đi vào mà không cần quẹt thẻ, đó chính là Fail-Open. Thiết kế này cực kỳ nguy hiểm trong bảo mật vì nó tạo ra sơ hở cho kẻ xấu lợi dụng.
 
 ```python
 # Normal error handling in a web application
@@ -33,12 +31,16 @@ def handle_error(error):
 
 Đoạn code trên minh họa cách xử lý đúng: log chi tiết ở server, trả về thông báo chung cho client kèm mã tham chiếu để đội support có thể tra cứu.
 
-## 🔍 Mô tả lỗ hổng
+## Mô tả lỗ hổng
+Lỗ hổng xử lý lỗi (Improper Error Handling) xảy ra khi ứng dụng trở nên lúng túng khi gặp sự cố và vô tình "nói quá nhiều" hoặc "mở toang cửa".
 
-Lỗ hổng error handling xảy ra khi ứng dụng: (1) để lộ stack trace, đường dẫn file, tên database, hoặc phiên bản framework cho user; (2) xử lý lỗi theo kiểu fail-open, cho phép bypass authentication/authorization khi hệ thống gặp sự cố; (3) không xử lý exception, dẫn đến crash hoặc trạng thái không xác định. Attacker thu thập thông tin từ error message để lên kế hoạch tấn công chính xác hơn.
+Cụ thể, khi có lỗi xảy ra, thay vì hiển thị một lời xin lỗi chung chung, ứng dụng lại ném ra toàn bộ nhật ký lỗi kỹ thuật chi tiết (stack trace), bao gồm đường dẫn thư mục, tên bảng trong cơ sở dữ liệu, phiên bản thư viện đang dùng, hay thậm chí là hệ điều hành của máy chủ. 
 
-## ⚔️ Cơ chế tấn công
+Tệ hơn nữa, nếu hệ thống được thiết kế theo kiểu "Fail-Open", khi quá trình kiểm tra đăng nhập gặp lỗi kỹ thuật, nó lại mặc định cho phép người dùng đi qua. 
 
+Mối nguy hiểm của lỗ hổng này là nó cung cấp cho kẻ tấn công một "bản đồ kho báu" chi tiết về cấu trúc bên trong của hệ thống để chúng lên kế hoạch tấn công chính xác, hoặc giúp chúng dễ dàng vượt qua các bước xác thực bằng cách cố tình tạo ra các lỗi hệ thống.
+
+## Cơ chế tấn công
 **1. Stack Trace Information Disclosure — kích hoạt lỗi để thu thập thông tin:**
 
 ```http
@@ -68,15 +70,15 @@ def check_authentication(token):
 
 Attacker có thể gửi token sai định dạng cố ý để trigger exception và được cấp quyền truy cập.
 
-## 🛡️ Biện pháp phòng thủ
+## Biện pháp phòng thủ
+- **Tóm tắt**: Xử lý lỗi an toàn bằng cách ẩn stack trace chi tiết trên môi trường production, thiết kế theo nguyên lý Fail-Close, và ghi log cấu trúc phía máy chủ.
+- **Các bước chi tiết**:
+  - **Custom error pages**: Cấu hình error page riêng cho production, ẩn toàn bộ stack trace và thông tin debug.
+  - **Fail-close by default**: Khi xảy ra lỗi, luôn từ chối truy cập và yêu cầu xác thực lại.
+  - **Structured logging**: Ghi log chi tiết ở server (ELK Stack, Splunk) nhưng chỉ trả về error code/reference cho client.
+  - **Disable debug mode**: Tắt `DEBUG=True` (Django), `app.debug` (Flask), `SHOW_ERRORS` (Laravel) trong production.
 
-1. **Custom error pages**: Cấu hình error page riêng cho production, ẩn toàn bộ stack trace và thông tin debug.
-2. **Fail-close by default**: Khi xảy ra lỗi, luôn từ chối truy cập và yêu cầu xác thực lại.
-3. **Structured logging**: Ghi log chi tiết ở server (ELK Stack, Splunk) nhưng chỉ trả về error code/reference cho client.
-4. **Disable debug mode**: Tắt `DEBUG=True` (Django), `app.debug` (Flask), `SHOW_ERRORS` (Laravel) trong production.
-
-## 💻 Code Example
-
+## Code Example
 ```python
 # VULNERABLE: exposes internal details and fails open
 @app.route('/api/admin/dashboard')
@@ -122,7 +124,17 @@ def admin_dashboard():
         }), 500
 ```
 
-## 📚 Nguồn tham khảo
+## Xem thêm
+- [Các bài học liên quan trong cùng thư mục](../)
+
+## Nguồn tham khảo
 - PortSwigger: https://portswigger.net/web-security/information-disclosure
 - OWASP: https://owasp.org/www-community/Improper_Error_Handling
 - CWE: https://cwe.mitre.org/data/definitions/755.html
+
+## Giải thích thuật ngữ
+- **Stack Trace (Vết ngăn xếp)**: Danh sách chi tiết các hàm đang chạy tại thời điểm xảy ra lỗi, chỉ ra chính xác tệp tin và số dòng code gặp sự cố. Đây là thông tin cực kỳ hữu ích cho lập trình viên nhưng rất nguy hiểm nếu để lộ ra ngoài.
+- **Fail-Close (Thất bại - Đóng)**: Nguyên tắc thiết kế bảo mật mà khi một chức năng hoặc hệ thống gặp lỗi, nó sẽ mặc định chuyển sang trạng thái an toàn nhất bằng cách từ chối mọi yêu cầu truy cập.
+- **Fail-Open (Thất bại - Mở)**: Thiết kế lỗi mà khi hệ thống gặp sự cố, nó lại tự động bỏ qua các bước kiểm tra bảo mật và cho phép người dùng truy cập vào tài nguyên.
+- **Exception (Ngoại lệ)**: Một sự kiện đặc biệt xảy ra trong quá trình thực thi chương trình làm gián đoạn luồng hướng dẫn bình thường (như lỗi chia cho 0, lỗi mất kết nối mạng).
+- **Graceful Error Handling (Xử lý lỗi khéo léo)**: Việc bắt và xử lý các lỗi phát sinh sao cho ứng dụng không bị sập đột ngột, đồng thời chỉ hiển thị những thông báo thân thiện và an toàn cho người dùng cuối.

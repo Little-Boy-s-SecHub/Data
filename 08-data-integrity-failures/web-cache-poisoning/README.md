@@ -1,14 +1,13 @@
 # Web Cache Poisoning
 
-> **OWASP Top 10:2025**: A08 | **CWE**: CWE-349 | **Nguồn**: PortSwigger, James Kettle Research
+> **CWE**: CWE-349 | **Phân loại**: Data Integrity
 
-## 🧱 Kiến thức Nền tảng
+## Kiến thức Nền tảng
+Hãy tưởng tượng một người phát thư siêu tốc của một công ty lớn (Web Cache). Để phát thư nhanh, người này lập ra một cuốn sổ tay phân loại thư dựa trên các thông tin ghi trên phong bì: "Phương thức gửi + Địa chỉ người nhận + Tiêu đề thư" (những thông tin này được gọi là **cache key**). Nếu có hai bức thư giống hệt nhau về các thông tin này gửi đến, người phát thư sẽ lấy luôn bản sao thư cũ ra giao cho nhanh, thay vì phải chạy vào kho lục lọi lại từ đầu.
+Tuy nhiên, bên trong bức thư hoặc trên mép phong bì có thể ghi thêm một số lời nhắn phụ như: "Xin hãy gửi kèm tập tài liệu quảng cáo từ trang web X" (những thông tin ngoài lề này không dùng để phân loại thư, gọi là **unkeyed inputs**).
 
-**Web cache** là một lớp trung gian lưu trữ bản sao của HTTP response để phục vụ nhanh hơn cho các request giống nhau tiếp theo. Cache có thể nằm ở nhiều vị trí: CDN (Cloudflare, Akamai), reverse proxy (Varnish, Nginx), hoặc application-level cache.
-
-Khi nhận một request, cache server tạo **cache key** — thường gồm `Method + Host + Path + Query String` — để xác định xem response đã được lưu chưa. Các thành phần **không nằm trong cache key** được gọi là **unkeyed inputs** (ví dụ: headers như `X-Forwarded-Host`, `X-Original-URL`, `Accept-Language`).
-
-Điểm quan trọng: mặc dù unkeyed inputs không ảnh hưởng đến cache key, chúng vẫn có thể ảnh hưởng đến nội dung response. Đây chính là nền tảng của Web Cache Poisoning.
+Mặc dù người phát thư không quan tâm đến lời nhắn phụ này khi phân loại (nó không ảnh hưởng đến cache key), nhưng bộ phận soạn thư ở kho (Origin Server) lại đọc nó và thiết kế nội dung thư trả về dựa trên lời nhắn đó.
+Đây chính là sơ hở chết người: Người phát thư vẫn nghĩ đây là một bức thư bình thường và lưu bản sao của nó lại để gửi cho những người tiếp theo, mà không biết rằng nội dung bên trong đã bị biến đổi dựa trên các lời nhắn phụ kia.
 
 ```
 # Normal cache operation flow
@@ -39,14 +38,14 @@ def handle_request(request):
     return response
 ```
 
-## 🔍 Mô tả lỗ hổng
+## Mô tả lỗ hổng
+Lỗ hổng **Web Cache Poisoning (Đầu độc bộ nhớ đệm Web)** giống như một kẻ xấu lén bỏ thuốc độc vào bể chứa nước công cộng của cả khu phố.
+Cụ thể, kẻ tấn công gửi một yêu cầu chứa các lời nhắn phụ (unkeyed input như header `X-Forwarded-Host`) chứa mã độc. Máy chủ gốc xử lý yêu cầu này, tạo ra một trang web bị nhiễm mã độc và gửi lại. Bộ nhớ đệm (Cache) thấy yêu cầu này khớp với phân loại thông thường liền lưu trang nhiễm độc này vào kho chứa của mình.
 
-Web Cache Poisoning xảy ra khi kẻ tấn công thao túng **unkeyed input** (header, cookie không nằm trong cache key) để khiến origin server trả về response chứa payload độc hại. Response này sau đó được cache lưu trữ và **phục vụ cho tất cả người dùng** truy cập cùng URL.
+Kể từ giây phút đó, bể nước đã bị nhiễm độc. Bất kỳ người dùng lương thiện nào khác đến yêu cầu trang web đó đều nhận lại bản sao nhiễm độc được phân phối trực tiếp từ bộ nhớ đệm.
+Khác với các hình thức tấn công thông thường chỉ nhắm vào một nạn nhân đơn lẻ, đầu độc bộ nhớ đệm có sức tàn phá trên diện rộng: Mọi người truy cập trang web đó đều sẽ bị dính mã độc cho đến khi bộ nhớ đệm tự động xóa bản sao cũ đi hoặc có người phát hiện để làm sạch.
 
-Khác với các cuộc tấn công truyền thống chỉ ảnh hưởng đến một người dùng, cache poisoning có tác động **lan rộng** — mọi visitor đều nhận được response bị nhiễm độc cho đến khi cache hết hạn.
-
-## ⚔️ Cơ chế tấn công
-
+## Cơ chế tấn công
 **Bước 1: Tìm unkeyed header ảnh hưởng đến response:**
 
 ```http
@@ -128,19 +127,13 @@ def probe_unkeyed_headers(target_url):
 probe_unkeyed_headers("https://target.com/")
 ```
 
-## 🛡️ Biện pháp phòng thủ
-
-1. **Đưa tất cả input ảnh hưởng response vào cache key** — dùng `Vary` header:
-
+## Biện pháp phòng thủ
 ```http
 # Include relevant headers in cache key via Vary header
 HTTP/1.1 200 OK
 Vary: X-Forwarded-Host, Accept-Language, Accept-Encoding
 Cache-Control: public, max-age=3600
 ```
-
-2. **Loại bỏ unkeyed header không cần thiết** tại tầng proxy trước khi forward:
-
 ```nginx
 # Nginx — strip dangerous headers before forwarding to origin
 proxy_set_header X-Forwarded-Host "";
@@ -148,14 +141,15 @@ proxy_set_header X-Original-URL "";
 proxy_set_header X-Rewrite-URL "";
 ```
 
-3. **Không phản ánh header vào response** — tránh dùng header value trong HTML output.
+- **Tóm tắt**: Ngăn chặn Web Cache Poisoning bằng cách đưa tất cả các input ảnh hưởng đến phản hồi vào cache key, sử dụng tiêu đề Vary và cấu hình CDN an toàn.
+- **Các bước chi tiết**:
+  - **Đưa tất cả input ảnh hưởng response vào cache key** — dùng `Vary` header:
+  - **Loại bỏ unkeyed header không cần thiết** tại tầng proxy trước khi forward:
+  - **Không phản ánh header vào response** — tránh dùng header value trong HTML output.
+  - **Sử dụng `Cache-Control: private`** cho trang chứa user-specific content.
+  - **Giám sát cache hit rate** — tỷ lệ cache hit bất thường có thể là dấu hiệu poisoning.
 
-4. **Sử dụng `Cache-Control: private`** cho trang chứa user-specific content.
-
-5. **Giám sát cache hit rate** — tỷ lệ cache hit bất thường có thể là dấu hiệu poisoning.
-
-## 💻 Code Example
-
+## Code Example
 ```python
 # === VULNERABLE: Reflects X-Forwarded-Host into page without cache key ===
 from flask import Flask, request
@@ -189,8 +183,22 @@ def home_secure():
     '''  # SAFE: only whitelisted CDN hosts are used
 ```
 
-## 📚 Nguồn tham khảo
+## Xem thêm
+- [CRLF Injection](../../05-injection/crlf-injection/) — Tấn công chèn các ký tự xuống dòng để phân tách HTTP response, thường được dùng để thêm các header độc hại phục vụ cho Web Cache Poisoning.
+
+## Nguồn tham khảo
 - PortSwigger: https://portswigger.net/web-security/web-cache-poisoning
 - OWASP: https://owasp.org/www-community/attacks/Cache_Poisoning
 - CWE: https://cwe.mitre.org/data/definitions/349.html
 - James Kettle: https://portswigger.net/research/practical-web-cache-poisoning
+
+## Giải thích thuật ngữ
+- **Web Cache**: Bộ nhớ đệm trung gian lưu giữ bản sao các phản hồi từ máy chủ để phân phối nhanh cho người dùng, giúp giảm tải hệ thống.
+- **Cache Key**: Chuỗi khóa định danh được tạo ra từ một số thành phần của yêu cầu (như địa chỉ trang web, phương thức gửi) dùng để đối chiếu xem tài nguyên đã có sẵn trong bộ nhớ đệm hay chưa.
+- **Unkeyed Inputs**: Các phần dữ liệu của yêu cầu (như các header bổ sung) không tham gia vào việc tạo ra cache key nhưng vẫn được máy chủ gốc xử lý.
+- **Origin Server**: Máy chủ gốc xử lý mã nguồn và cơ sở dữ liệu chính của website.
+- **Cache MISS**: Trạng thái yêu cầu gửi tới bộ nhớ đệm nhưng chưa có sẵn bản sao, buộc phải chuyển tiếp yêu cầu đến máy chủ gốc.
+- **Cache HIT**: Trạng thái bộ nhớ đệm đã có sẵn bản sao yêu cầu và trả về ngay lập tức cho người dùng.
+- **Fat GET**: Yêu cầu HTTP sử dụng phương thức GET nhưng có gửi kèm theo phần thân dữ liệu (body), một hành vi không phổ biến có thể gây bối rối cho hệ thống cache.
+- **Vary Header**: Header HTTP dùng để hướng dẫn bộ nhớ đệm biết những header nào của client cần được đưa vào để tính toán cache key.
+- **Payload**: Đoạn mã độc hoặc dữ liệu được kẻ tấn công sử dụng để khai thác lỗ hổng.

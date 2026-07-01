@@ -1,11 +1,13 @@
 # Unencrypted Communication
 
-> **OWASP Top 10:2025**: A04:2025 – Cryptographic Failures | **CWE**: CWE-319 (Cleartext Transmission of Sensitive Information) | **Phân loại**: Network
+> **CWE**: CWE-319 (Cleartext Transmission of Sensitive Information) | **Phân loại**: Cryptographic Failures
 
-## 🧱 Kiến thức Nền tảng
-Giao tiếp không mã hóa là việc truyền tải thông tin giữa máy khách và máy chủ dưới dạng văn bản rõ (**cleartext**), thiếu đi sự bảo vệ của các thuật toán mật mã. Kẻ tấn công trên cùng phân đoạn mạng có thể thực hiện tấn công Man-in-the-Middle bằng cách gửi các bản tin giả mạo thuộc giao thức **ARP** (Address Resolution Protocol) nhằm chuyển hướng lưu lượng mạng của nạn nhân qua thiết bị của mình. Sau khi chuyển hướng thành công, kẻ tấn công sử dụng các công cụ bắt gói tin (**packet sniffer**) để thu thập và đọc trực tiếp toàn bộ dữ liệu thô nhạy cảm như mật khẩu hay cookie phiên.
+## Kiến thức Nền tảng
+Hãy tưởng tượng việc gửi thông tin trên mạng Internet giống như việc bạn gửi những bức thư giấy. Nếu bạn sử dụng giao thức không mã hóa (như HTTP thường), bức thư của bạn sẽ được gửi đi mà không hề có phong bì, ai đứng dọc đường cũng có thể dễ dàng đọc trọn vẹn nội dung bên trong (**cleartext**). 
 
-Để ngăn chặn lỗ hổng này, luồng giao tiếp bắt buộc phải được mã hóa bằng TLS/HTTPS. Hệ thống kết hợp cả hai cơ chế mã hóa chính: **mã hóa bất đối xứng (asymmetric encryption)** dùng cặp khóa công khai/bí mật để xác thực danh tính máy chủ thông qua chứng chỉ số và trao đổi khóa đối xứng an toàn; sau đó **mã hóa đối xứng (symmetric encryption)** dùng chung một khóa phiên (session key) sẽ mã hóa toàn bộ dữ liệu thực tế truyền qua lại giữa hai đầu kết nối. Sự kết hợp này đảm bảo dữ liệu truyền đi không thể bị đọc hiểu bởi các sniffer, bảo vệ toàn vẹn thông điệp và ngăn chặn các cuộc tấn công nghe lén trên đường truyền.
+Trong thực tế, khi bạn kết nối vào một mạng Wi-Fi công cộng ở quán cà phê, kẻ tấn công có thể sử dụng các kỹ thuật như **ARP Spoofing** để lừa thiết bị của bạn gửi mọi bức thư qua máy của chúng trước khi đi ra Internet. Tại đây, chúng chỉ cần bật một công cụ gọi là **packet sniffer** (giống như một chiếc máy quét thư tự động) là có thể chụp lại toàn bộ dữ liệu thô của bạn: từ mật khẩu, tài khoản ngân hàng cho tới nội dung tin nhắn riêng tư.
+
+Để bảo vệ bức thư đó, chúng ta cần bọc nó bằng một chiếc phong bì siêu bảo mật gọi là HTTPS (hay giao thức TLS). Đầu tiên, hệ thống sử dụng **mã hóa bất đối xứng** (với cặp khóa công-tư) giống như một quy trình xác thực nghiêm ngặt để đảm bảo bạn đang nói chuyện đúng với máy chủ thật chứ không phải kẻ mạo danh, đồng thời giúp hai bên trao đổi một chiếc khóa bí mật an toàn. Sau đó, toàn bộ cuộc trò chuyện thực sự sẽ được bảo vệ bằng **mã hóa đối xứng** (hai bên dùng chung chiếc khóa bí mật vừa tạo) để mã hóa dữ liệu siêu tốc. Khi đã được mã hóa, bức thư giấy ban đầu biến thành những ký tự vô nghĩa đối với bất kỳ kẻ nghe lén nào dọc đường.
 
 ### Minh họa hoạt động bình thường (Normal Operation)
 ```python
@@ -33,14 +35,16 @@ target_url = "https://www.python.org"
 secure_content = fetch_secure_data(target_url)
 ```
 
-## 🔍 Mô tả lỗ hổng
-Giao tiếp không mã hóa xảy ra khi dữ liệu nhạy cảm được truyền tải giữa máy khách và máy chủ dưới dạng văn bản thô (cleartext), ví dụ như qua giao thức HTTP, FTP. Điều này khiến toàn bộ lưu lượng dữ liệu dễ dàng bị nghe lén, đánh cắp hoặc sửa đổi bởi các bên không được phép. Đây là một lỗ hổng nghiêm trọng có thể dẫn đến việc lộ khóa phiên, mật khẩu và dữ liệu cá nhân.
+## Mô tả lỗ hổng
+Lỗ hổng "Giao tiếp không mã hóa" (Unencrypted Communication) xảy ra khi một ứng dụng truyền tải các thông tin nhạy cảm của người dùng (như mật khẩu, cookie phiên đăng nhập, thông tin thẻ) qua các giao thức không bảo mật (như HTTP thô, FTP). 
 
-## ⚔️ Cơ chế tấn công
+Mối nguy hiểm lớn nhất của lỗ hổng này là nó mở toang cánh cửa cho bất kỳ kẻ xấu nào ở cùng mạng nội bộ (hoặc trên đường truyền Internet) dễ dàng xem trộm và đánh cắp dữ liệu của bạn mà không cần tốn nhiều công sức bẻ khóa. Nếu cookie phiên đăng nhập của bạn bị đọc trộm, kẻ tấn công có thể giả mạo bạn để đăng nhập vào tài khoản ngay lập tức mà không cần biết mật khẩu.
+
+## Cơ chế tấn công
 Kẻ tấn công nằm cùng phân đoạn mạng cục bộ với nạn nhân (như mạng Wi-Fi công cộng) và thực hiện các kỹ thuật như giả mạo gói tin ARP (ARP Spoofing) để lừa bộ định tuyến gửi lưu lượng mạng của nạn nhân qua máy của kẻ tấn công. Sử dụng các công cụ bắt gói tin (sniffers), kẻ tấn công dễ dàng trích xuất các thông tin nhạy cảm từ các gói tin HTTP không mã hóa được truyền đi mà không cần bất kỳ thao tác giải mã phức tạp nào.
 
-## 🛡️ Biện pháp phòng thủ
-- **Tóm tắt**: Bảo vệ dữ liệu truyền tải bằng cách thực thi mã hóa HTTPS (TLS) bắt buộc, tắt các giao thức không mã hóa, sử dụng HSTS cứng và đảm bảo cấu hình cipher suite an sau khi cấu hình.
+## Biện pháp phòng thủ
+- **Tóm tắt**: Bảo vệ dữ liệu truyền tải bằng cách thực thi mã hóa HTTPS (TLS) bắt buộc, tắt các giao thức không mã hóa, sử dụng HSTS cứng và đảm bảo cấu hình cipher suite an toàn sau khi cấu hình.
 - **Các bước chi tiết**:
   - Bắt buộc sử dụng HTTPS/TLS trên toàn bộ ứng dụng và từ chối xử lý tất cả các yêu cầu HTTP thường.
   - Cấu hình tiêu đề Strict-Transport-Security (HSTS) với giá trị chỉ thị `max-age` dài hạn, có kèm `includeSubDomains` and `preload`.
@@ -48,7 +52,7 @@ Kẻ tấn công nằm cùng phân đoạn mạng cục bộ với nạn nhân (
   - Thiết lập thuộc tính `Secure` trên toàn bộ cookie để ngăn trình duyệt tự động gửi chúng qua các kênh HTTP không được bảo vệ.
   - Xác thực chứng chỉ TLS/SSL khi thực hiện các kết nối ra ngoài (như gọi API, kết nối cơ sở dữ liệu).
 
-## 💻 Code Example
+## Code Example
 ```configuration
 server {
     listen 80 default_server;
@@ -76,7 +80,19 @@ server {
 }
 ```
 
-## 📚 Ghi chú kỹ thuật & Nguồn tham khảo
-- **Trạng thái kiểm định**: FIXED
-- **Ghi chú kỹ thuật**: Đã chỉnh sửa cấu hình chuyển hướng HTTP sang HTTPS của Nginx cổng 80 để không sử dụng biến `$host` động nữa, ngăn chặn hoàn toàn nguy cơ bị lợi dụng để thực hiện tấn công Host Header Injection hoặc Open Redirect. Thay vào đó cấu hình chuyển hướng cứng sang tên miền canonical cố định (`example.com`).
+
+## Xem thêm
+- [DNS Poisoning](../dns-poisoning/) — Xem thêm bài học về DNS Poisoning.
+
+## Nguồn tham khảo
 - **Nguồn tham khảo**: OWASP A02:2021, CWE-319, PortSwigger
+
+## Giải thích thuật ngữ
+- **HTTP (HyperText Transfer Protocol)**: Giao thức truyền tải siêu văn bản không mã hóa — dữ liệu đi dạng văn bản thuần túy (cleartext), bất kỳ ai nghe lén trên đường truyền đều có thể đọc được.
+- **HTTPS (HTTP Secure)**: Phiên bản bảo mật của HTTP, sử dụng TLS/SSL để mã hóa toàn bộ dữ liệu trong quá trình truyền — ngay cả khi bị chặn, kẻ tấn công chỉ thấy dữ liệu đã mã hóa.
+- **Cleartext (Văn bản rõ / văn bản thô)**: Dữ liệu ở dạng nguyên bản ban đầu, chưa qua bất kỳ thuật toán mã hóa hay biến đổi nào, khiến cho bất kỳ ai cũng có thể đọc và hiểu được nội dung.
+- **ARP Spoofing**: Kỹ thuật tấn công giả mạo các bản tin ARP trong mạng cục bộ để liên kết địa chỉ IP của một thiết bị hợp pháp (như Router) với địa chỉ MAC của kẻ tấn công, nhằm điều hướng lưu lượng dữ liệu đi qua máy kẻ tấn công.
+- **Packet Sniffer**: Các chương trình hoặc thiết bị dùng để nghe lén, thu thập và phân tích các gói tin dữ liệu truyền đi trên môi trường mạng.
+- **Asymmetric Encryption (Mã hóa bất đối xứng)**: Kỹ thuật mã hóa dùng một cặp khóa gồm khóa công khai (Public Key) để mã hóa dữ liệu và khóa bí mật (Private Key) để giải mã.
+- **Symmetric Encryption (Mã hóa đối xứng)**: Kỹ thuật mã hóa dùng chung một khóa bí mật cho cả hai chiều mã hóa và giải mã, có ưu điểm là xử lý nhanh chóng.
+- **TLS (Transport Layer Security)**: Giao thức mật mã được thiết kế để cung cấp bảo mật truyền thông qua mạng máy tính, là nền tảng bảo mật cho giao thức HTTPS.

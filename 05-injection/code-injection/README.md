@@ -1,20 +1,10 @@
 # Code Injection
 
-> **OWASP Top 10:2025**: A05:2025 – Injection | **CWE**: CWE-94 | **Nguồn**: PortSwigger, OWASP, CWE MITRE
+> **CWE**: CWE-94 | **Phân loại**: Injection
 
-## 🧱 Kiến thức Nền tảng
+## Kiến thức Nền tảng
 
-Nhiều ngôn ngữ lập trình cung cấp khả năng **thực thi code động** (dynamic code evaluation) — tức là chuyển đổi một chuỗi văn bản thành code thực thi tại runtime. Các hàm phổ biến bao gồm:
-
-- **Python**: `eval()`, `exec()`, `compile()`
-- **JavaScript**: `eval()`, `new Function()`, `setTimeout('code', ms)`
-- **PHP**: `eval()`, `assert()`, `preg_replace()` với modifier `/e`
-
-Mục đích thiết kế ban đầu là cho phép xây dựng các hệ thống linh hoạt — ví dụ calculator, template engine, hoặc plugin system. Tuy nhiên, khi đầu vào cho các hàm này đến từ người dùng mà không được kiểm soát, attacker có thể inject code tùy ý.
-
-**Phân biệt với OS Command Injection**: Code Injection thực thi code trong ngữ cảnh của ngôn ngữ lập trình (Python, JS, PHP), trong khi OS Command Injection thực thi lệnh hệ điều hành (shell commands). Code Injection thường nguy hiểm hơn vì attacker có toàn quyền truy cập runtime environment.
-
-Ví dụ sử dụng `eval()` hợp lệ trong một calculator đơn giản:
+Hãy tưởng tượng bạn đang hướng dẫn cho một robot làm việc nhà. Thay vì chỉ đưa cho nó các lệnh cố định như "quét nhà", bạn lại đưa cho nó một chiếc hộp kỳ diệu có thể tự động chạy bất kỳ mệnh lệnh nào viết trên giấy. Trong thế giới lập trình, các ngôn ngữ như Python, JavaScript hay PHP cũng sở hữu những "chiếc hộp" như thế – đó là các hàm thực thi mã động (dynamic code evaluation) như `eval()` hay `exec()`. Chúng sinh ra để hệ thống trở nên linh hoạt hơn, chẳng hạn như để tự động tính toán các biểu thức phức tạp hoặc vận hành hệ thống template. Tuy nhiên, nếu bạn để người lạ tự tiện ghi chữ vào giấy rồi bỏ vào chiếc hộp đó, robot sẽ làm theo mọi yêu cầu của họ, kể cả những yêu cầu phá hoại. Hãy lưu ý rằng lỗ hổng này khác với việc chèn lệnh hệ điều hành (OS Command Injection) – ở đây, kẻ xấu đang thao túng chính "bộ não" và ngữ cảnh chạy của ngôn ngữ lập trình.
 
 ```python
 # Simple calculator — legitimate use of eval (still risky)
@@ -23,18 +13,11 @@ result = eval(expression)  # Returns 14
 print(f"Result: {result}")
 ```
 
-## 🔍 Mô tả lỗ hổng
+## Mô tả lỗ hổng
 
-Code Injection xảy ra khi ứng dụng truyền dữ liệu người dùng trực tiếp vào các hàm thực thi code động. Attacker có thể:
+Lỗ hổng Code Injection xuất hiện khi một ứng dụng "nhẹ dạ cả tin" nhận thông tin từ người dùng rồi đưa trực tiếp vào những hàm thực thi động này mà không hề có sự kiểm soát hay chọn lọc. Hãy hình dung một chiếc máy tính trực tuyến nhận biểu thức tính toán nhưng lại trực tiếp chạy nó như một đoạn code Python thực thụ. Kẻ tấn công có thể lợi dụng sơ hở này để gửi đi những "phép tính" kỳ lạ, nhưng thực chất là lệnh để đọc trộm các file dữ liệu nhạy cảm trên máy chủ, lấy đi các chìa khóa bảo mật, hay thậm chí là chiếm quyền điều khiển máy chủ từ xa (RCE). Lỗ hổng này đặc biệt nguy hiểm bởi nó mở toang cánh cửa vào sâu bên trong ứng dụng, biến hệ thống của bạn thành công cụ đắc lực cho kẻ xấu.
 
-- Đọc/ghi file trên server
-- Truy cập biến môi trường, secrets, credentials
-- Thực thi lệnh hệ thống thông qua runtime (ví dụ `os.system()` trong Python)
-- Chiếm quyền điều khiển hoàn toàn server (RCE — Remote Code Execution)
-
-Lỗ hổng này đặc biệt phổ biến trong các ứng dụng cần xử lý biểu thức toán học, template rendering, hoặc JSON/YAML parsing tùy chỉnh.
-
-## ⚔️ Cơ chế tấn công
+## Cơ chế tấn công
 
 **Python eval() exploitation**:
 
@@ -78,15 +61,17 @@ eval($code);  // DANGER: Arbitrary PHP execution
 ?>
 ```
 
-## 🛡️ Biện pháp phòng thủ
+## Biện pháp phòng thủ
 
-1. **Tuyệt đối tránh eval()**: Trong 99% trường hợp, có giải pháp thay thế an toàn hơn. Dùng parser chuyên dụng cho biểu thức toán học.
-2. **Whitelist operations**: Nếu bắt buộc xử lý biểu thức, chỉ cho phép toán tử và số, reject mọi thứ khác.
-3. **Sandbox execution**: Nếu phải thực thi code động, sử dụng sandbox (Docker container, VM, hoặc restricted environment).
-4. **AST-based evaluation**: Parse input thành Abstract Syntax Tree, validate từng node trước khi thực thi.
-5. **Content Security Policy**: Trong browser, CSP `script-src` ngăn chặn inline eval.
+- **Tóm tắt**: Hạn chế và loại bỏ hoàn toàn việc thực thi mã động không an toàn, sử dụng phân tích cú pháp an toàn và kiểm soát môi trường thực thi.
+- **Các bước chi tiết**:
+  - Tuyệt đối tránh eval(): Trong 99% trường hợp, có giải pháp thay thế an toàn hơn. Dùng parser chuyên dụng cho biểu thức toán học.
+  - Whitelist operations: Nếu bắt buộc xử lý biểu thức, chỉ cho phép toán tử và số, reject mọi thứ khác.
+  - Sandbox execution: Nếu phải thực thi code động, sử dụng sandbox (Docker container, VM, hoặc restricted environment).
+  - AST-based evaluation: Parse input thành Abstract Syntax Tree, validate từng node trước khi thực thi.
+  - Content Security Policy: Trong browser, CSP `script-src` ngăn chặn inline eval.
 
-## 💻 Code Example
+## Code Example
 
 ```python
 # === VULNERABLE CODE ===
@@ -149,8 +134,21 @@ def calculate():
         return f"Invalid expression", 400
 ```
 
-## 📚 Nguồn tham khảo
+## Xem thêm
+
+- [Command Execution](../command-execution/) — Thực thi lệnh trực tiếp trên hệ điều hành của máy chủ đích.
+- [Insecure Deserialization](../../08-data-integrity-failures/insecure-deserialization/) — Giải tuần tự hóa không an toàn có thể dẫn đến việc khởi tạo đối tượng độc hại gây chèn mã hoặc thực thi mã từ xa.
+
+## Nguồn tham khảo
 
 - PortSwigger: https://portswigger.net/web-security/os-command-injection
 - OWASP: https://owasp.org/www-community/attacks/Code_Injection
 - CWE: https://cwe.mitre.org/data/definitions/94.html
+
+## Giải thích thuật ngữ
+
+- **Code Injection**: Lỗ hổng cho phép kẻ tấn công chèn và thực thi mã độc trong ngữ cảnh của ngôn ngữ lập trình.
+- **Dynamic Code Evaluation**: Khả năng thực thi các chuỗi ký tự như mã nguồn tại thời điểm chạy (runtime).
+- **RCE (Remote Code Execution)**: Lỗ hổng thực thi mã từ xa, cho phép kẻ tấn công chạy lệnh tùy ý trên máy chủ mục tiêu.
+- **Runtime Environment**: Môi trường thực thi của ứng dụng tại thời điểm chạy.
+- **AST (Abstract Syntax Tree)**: Cây cú pháp trừu tượng, cấu trúc phân tích mã nguồn thành dạng cây để kiểm tra và xử lý an toàn.

@@ -1,12 +1,14 @@
 # XML Bombs
 
-> **OWASP Top 10:2025**: A10:2025 – Mishandling of Exceptional Conditions | **CWE**: CWE-776 (Improper Neutralization of Recursive Entity References in DTDs), CWE-400 (Uncontrolled Resource Consumption) | **Phân loại**: System
+> **CWE**: CWE-776 (Improper Neutralization of Recursive Entity References in DTDs), CWE-400 (Uncontrolled Resource Consumption) | **Phân loại**: XML Attacks
 
-## 🧱 Kiến thức Nền tảng
-Tấn công XML Bomb (hay còn gọi là Billion Laughs) là một hình thức tấn công Từ chối Dịch vụ (DoS) nhắm vào các bộ phân tích cú pháp (parsers) của ứng dụng XML. Để hiểu được lý do một tệp tin XML cực nhỏ có thể đánh sập một hệ thống máy chủ, chúng ta cần tìm hiểu cơ chế xử lý thực thể sau:
+## Kiến thức Nền tảng
+Hãy tưởng tượng bạn nhận được một hộp quà nhỏ từ bưu điện. Khi mở hộp ra, bạn thấy bên trong có 10 chiếc hộp nhỏ hơn. Mở mỗi chiếc hộp nhỏ đó, bạn lại thấy 10 chiếc hộp nhỏ hơn nữa. Quá trình này lặp lại liên tục. Ban đầu chiếc hộp trông rất gọn nhẹ, nhưng khi bạn cố mở hết ra, đống hộp khổng lồ sẽ tràn ngập khắp căn phòng của bạn, không còn chỗ để thở.
+Trong ngôn ngữ XML, cơ chế này tương đương với **Lồng thực thể (XML Entity Nesting)**. XML cho phép lập trình viên tạo ra các "phím tắt" (gọi là thực thể - entities) thông qua định nghĩa DTD để viết code nhanh hơn. Một phím tắt này có thể gọi đến các phím tắt khác lồng nhau.
 
-1. **XML entity nesting (Lồng thực thể XML)**: Ngôn ngữ XML cho phép định nghĩa các thực thể (entities) thông qua DTD (Document Type Definition) làm phím tắt để thay thế văn bản khi xử lý. Các thực thể này không chỉ chứa chuỗi ký tự tĩnh mà còn có thể tham chiếu lồng nhau (nesting). Ví dụ, thực thể `&lol2;` được cấu thành từ nhiều thực thể `&lol1;`, và đến lượt mình, `&lol1;` lại tham chiếu đến các thực thể `&lol;` cơ bản. Cấu trúc lồng ghép này tạo thành một mô hình phân cấp giống như một cây thực thể.
-2. **Entity expansion (Mở rộng thực thể)**: Khi parser xử lý tài liệu XML, nó sẽ giải quyết đệ quy các thực thể này bằng cách thay thế các tham chiếu thực thể bằng nội dung thực của chúng (quá trình expansion). Nếu parser không được giới hạn, cấu trúc lồng nhau dạng lũy thừa (ví dụ lồng nhau 9 cấp, mỗi cấp nhân bản 10 lần) sẽ khiến 1 thực thể gốc phình to thành $10^9$ (1 tỷ) thực thể thô. Quá trình giải nén này tiêu tốn dung lượng bộ nhớ khổng lồ trên RAM (từ vài Kilobytes ban đầu phình to thành hàng trăm Megabytes hoặc thậm chí Gigabytes) và chiếm trọn tài nguyên CPU, khiến máy chủ hết bộ nhớ (Out of Memory) và dừng hoạt động ngay lập tức.
+Khi hệ thống dịch mã XML (XML Parser) đọc tệp tin này, nó sẽ thực hiện nhiệm vụ dịch nghĩa các phím tắt đó ra nội dung thực tế (quá trình **Entity Expansion** - mở rộng thực thể).
+Nếu trình phân dịch này quá ngây thơ và không có giới hạn an toàn, cấu trúc lồng nhau dạng lũy thừa (chỉ cần lồng nhau 9 cấp, mỗi cấp nhân bản 10 lần) sẽ tạo ra một hiệu ứng dây chuyền kinh hoàng: 1 từ viết tắt ban đầu sẽ phình to thành 1 tỷ từ thô trong bộ nhớ!
+Chiếc tệp XML siêu nhỏ ban đầu chỉ nặng khoảng vài Kilobytes bỗng chốc biến thành một "quả bom tấn" phình to lên hàng trăm Megabytes hoặc hàng Gigabytes dữ liệu trong RAM. Máy chủ xử lý không kịp, cạn kiệt bộ nhớ (Out of Memory) và sụp đổ ngay lập tức.
 
 ### Minh họa hoạt động bình thường (Normal Operation)
 ```python
@@ -43,13 +45,18 @@ def parse_user_profile(xml_string):
 parse_user_profile(normal_xml_data)
 ```
 
-## 🔍 Mô tả lỗ hổng
-XML Bomb (hay còn gọi là cuộc tấn công Billion Laughs) khai thác các thư viện phân tích cú pháp XML cho phép khai báo DTD nội tuyến và mở rộng thực thể (entity expansion) đệ quy. Kẻ tấn công có thể thiết kế một tài liệu XML nhỏ nhưng chứa các thực thể lồng nhau, khiến tài liệu phình to gấp hàng triệu lần khi phân tích. Lỗ hổng này dẫn đến cạn kiệt CPU, RAM của máy chủ và gây ra từ chối dịch vụ (Denial of Service).
+## Mô tả lỗ hổng
+Lỗ hổng **XML Bomb (còn được gọi là Billion Laughs - Quả bom một tỷ tiếng cười)** là một chiếc bẫy tinh vi nhắm vào bộ nhớ của máy chủ. Nó xảy ra do các thư viện phân tích cú pháp XML cũ mặc định cho phép người dùng tự định nghĩa các từ viết tắt đệ quy.
 
-## ⚔️ Cơ chế tấn công
+Kẻ tấn công chỉ cần gửi một đoạn dữ liệu XML cực nhỏ nhưng chứa cấu trúc lồng nhau đệ quy.
+Sự nguy hiểm của lỗ hổng này nằm ở chỗ:
+- Máy chủ không thể nhận biết tệp tin này nguy hiểm chỉ qua dung lượng tải lên (vì tệp tin thực tế cực kỳ nhẹ, dễ dàng vượt qua các bộ lọc kích thước file).
+- Chỉ khi máy chủ bắt đầu phân tích cú pháp (parse) và giải nén các thực thể lồng nhau, "quả bom" mới bắt đầu phát nổ. Nó vắt kiệt từng byte RAM và chiếm dụng 100% CPU để xử lý chuỗi ký tự khổng lồ, khiến toàn bộ máy chủ bị treo và ngừng phục vụ tất cả người dùng khác (DoS).
+
+## Cơ chế tấn công
 Kẻ tấn công gửi một tệp XML chứa các định nghĩa thực thể lồng nhau (ví dụ: định nghĩa thực thể `lol1` chứa 10 thực thể `lol`, thực thể `lol2` chứa 10 thực thể `lol1`, cứ như thế lặp lại 9 cấp đến `lol9`). Khi parser phân tích cú pháp và cố gắng mở rộng thực thể `lol9` này ra văn bản thô, 1 thực thể ban đầu sẽ nhân bản thành 1 tỷ thực thể `lol`. Điều này khiến kích thước tệp ban đầu chỉ khoảng 1 KB phình to thành hàng trăm megabytes dữ liệu trong bộ nhớ RAM của máy chủ, vắt kiệt tài nguyên xử lý và làm sập ứng dụng.
 
-## 🛡️ Biện pháp phòng thủ
+## Biện pháp phòng thủ
 - **Tóm tắt**: Phòng chống XML Bomb bằng cách vô hiệu hóa hoàn toàn DTD nội tuyến hoặc giới hạn số lượng mở rộng thực thể tối đa trong cấu hình parser XML.
 - **Các bước chi tiết**:
   - Vô hiệu hóa hoàn toàn việc xử lý DTD nội tuyến (Document Type Definitions) trong bộ phân tích cú pháp XML.
@@ -57,7 +64,7 @@ Kẻ tấn công gửi một tệp XML chứa các định nghĩa thực thể l
   - Nếu DTD là bắt buộc đối với nghiệp vụ, hãy thiết lập giới hạn chặt chẽ về số lượng thực thể tối đa được phép mở rộng, kích thước tối đa của thuộc tính và kích thước tổng thể của tệp đầu vào.
   - Chuyển sang sử dụng các định dạng dữ liệu an toàn hơn như JSON thay thế cho XML khi có thể.
 
-## 💻 Code Example
+## Code Example
 ```python
 # Secure XML parsing in Python using 'defusedxml' library
 import defusedxml.ElementTree as ET
@@ -77,7 +84,35 @@ except Exception as e:
     print(f"Safe parser blocked XML bomb: {e}")
 ```
 
-## 📚 Ghi chú kỹ thuật & Nguồn tham khảo
-- **Trạng thái kiểm định**: FIXED
-- **Ghi chú kỹ thuật**: Đã sửa đổi sự không nhất quán giữa mô tả trong slide và thực tế kỹ thuật: văn bản Slide 13 ghi kích thước payload mở rộng đạt "3 gigabytes", trong khi cấu hình định nghĩa ở Slide 8 lồng nhau 9 cấp (`lol9`) thực tế chỉ phình ra tối đa khoảng "300 megabytes". Nội dung văn bản mô tả đã được cập nhật thành "300 megabytes" cho chính xác.
+```python
+# VULNERABLE: parsing XML without entity expansion limit
+import xml.etree.ElementTree as ET  # stdlib is NOT safe for untrusted XML
+
+def parse_xml_vulnerable(xml_string):
+    # ElementTree does NOT protect against entity expansion attacks
+    tree = ET.fromstring(xml_string)  # Billion Laughs will consume all RAM
+    return tree
+
+# SAFE: use defusedxml which blocks entity expansion
+import defusedxml.ElementTree as SafeET
+
+def parse_xml_safe(xml_string):
+    # defusedxml raises DefusedXmlException on XML bomb attempt
+    tree = SafeET.fromstring(xml_string)
+    return tree
+```
+
+## Xem thêm
+- [XML External Entities](../../05-injection/xxe/) — Lỗ hổng chèn thực thể XML bên ngoài cho phép đọc file hệ thống hoặc thực hiện SSRF thay vì gây cạn kiệt tài nguyên máy chủ.
+
+## Nguồn tham khảo
 - **Nguồn tham khảo**: OWASP XML Cheat Sheet, CWE-776, CWE-400
+
+## Giải thích thuật ngữ
+- **XML Entity (Thực thể XML)**: Hoạt động như một biến hoặc một lối tắt thay thế cho đoạn văn bản dài hơn trong tài liệu XML.
+- **DTD (Document Type Definition)**: Định nghĩa kiểu tài liệu, dùng để quy định cấu trúc ngữ pháp và các thực thể hợp lệ được sử dụng trong tệp XML.
+- **XML Parser**: Bộ phân tích cú pháp XML, chịu trách nhiệm đọc và biên dịch tệp XML thành cấu trúc dữ liệu mà ứng dụng hiểu được.
+- **Entity Expansion (Mở rộng thực thể)**: Quá trình thay thế các thực thể viết tắt bằng giá trị văn bản thực tế của chúng trong khi xử lý XML.
+- **Out of Memory (OOM)**: Lỗi cạn kiệt bộ nhớ RAM của hệ thống, khiến ứng dụng hoặc máy chủ bị tắt đột ngột do không thể cấp phát thêm bộ nhớ.
+- **Billion Laughs (Một tỷ tiếng cười)**: Tên gọi phổ biến của cuộc tấn công XML Bomb, xuất phát từ việc lặp lại đệ quy thực thể mang giá trị "lol" (viết tắt của cười lớn) lên đến một tỷ lần.
+- **Defusedxml**: Thư viện Python an toàn dùng để thay thế bộ parser XML mặc định, tự động chặn đứng các cuộc tấn công XML Bomb và chèn thực thể bên ngoài.

@@ -1,14 +1,10 @@
 # XPath Injection
 
-> **OWASP Top 10:2025**: A05:2025 – Injection | **CWE**: CWE-643 | **Nguồn**: PortSwigger, OWASP, CWE MITRE
+> **CWE**: CWE-643 | **Phân loại**: Injection
 
-## 🧱 Kiến thức Nền tảng
+## Kiến thức Nền tảng
 
-**XPath** (XML Path Language) là ngôn ngữ truy vấn dùng để chọn các node trong tài liệu XML — tương tự như SQL dùng cho cơ sở dữ liệu quan hệ. Nhiều ứng dụng sử dụng XML để lưu trữ cấu hình, dữ liệu người dùng, hoặc làm trung gian trao đổi dữ liệu giữa các hệ thống.
-
-Cú pháp XPath cho phép duyệt cây XML bằng các biểu thức đường dẫn (path expression). Ví dụ, `//user[name='admin']` sẽ tìm tất cả node `<user>` có child node `<name>` bằng `admin`.
-
-Một cấu trúc XML lưu trữ thông tin người dùng điển hình:
+Hãy tưởng tượng XML giống như một sơ đồ phả hệ hoặc cấu trúc dạng cây để lưu trữ thông tin (như danh sách người dùng và mật khẩu). Để tìm kiếm và di chuyển giữa các nhánh của cây XML này, lập trình viên sử dụng một ngôn ngữ truy vấn gọi là XPath (tương tự như cách SQL được dùng cho cơ sở dữ liệu quan hệ). XPath sử dụng các biểu thức đường dẫn thông minh như `//user[name='admin']` để nhanh chóng xác định đúng vị trí của nút dữ liệu cần tìm.
 
 ```xml
 <!-- users.xml — XML-based user database -->
@@ -42,15 +38,11 @@ if result:
     print("Login successful")
 ```
 
-## 🔍 Mô tả lỗ hổng
+## Mô tả lỗ hổng
 
-XPath Injection xảy ra khi ứng dụng xây dựng XPath query bằng cách nối chuỗi (string concatenation) với dữ liệu từ người dùng mà không sanitize. Khác với SQL Injection, XPath Injection có một số đặc điểm riêng:
+Lỗ hổng XPath Injection xảy ra khi ứng dụng web ghép nối trực tiếp thông tin do người dùng nhập vào câu lệnh truy vấn XPath mà không hề kiểm tra hay làm sạch dữ liệu. Kẻ tấn công có thể chèn các toán tử logic như `or` hoặc `'` để bẻ gãy logic tìm kiếm ban đầu. Khác với cơ sở dữ liệu SQL có các lớp phân quyền phức tạp cho từng bảng, các tài liệu XML thường chỉ là một file đơn lẻ không có cơ chế phân quyền bên trong. Một khi kẻ tấn công chèn được câu lệnh XPath độc hại thành công, họ có thể vượt qua bước xác thực đăng nhập mà không cần mật khẩu, hoặc trích xuất và đọc sạch sẽ mọi thông tin nhạy cảm nằm trong toàn bộ tệp XML đó.
 
-- **Không có hệ thống phân quyền**: XPath truy cập toàn bộ tài liệu XML — không có khái niệm "user permission" như trong database.
-- **Toàn bộ dữ liệu nằm trong một file**: Một khi khai thác thành công, attacker có thể trích xuất mọi thông tin trong XML.
-- **Không có comment hoặc statement stacking**: Nhưng vẫn có thể sử dụng toán tử logic `or`, `and` để bypass điều kiện.
-
-## ⚔️ Cơ chế tấn công
+## Cơ chế tấn công
 
 **Authentication Bypass** — Classic tautology attack tương tự SQL Injection:
 
@@ -83,15 +75,17 @@ password: ' or '1'='1
 # Attacker can enumerate the entire XML schema
 ```
 
-## 🛡️ Biện pháp phòng thủ
+## Biện pháp phòng thủ
 
-1. **Parameterized XPath queries**: Sử dụng XPath variable binding thay vì nối chuỗi — tương tự prepared statement trong SQL.
-2. **Input validation**: Whitelist ký tự cho phép (alphanumeric), reject ký tự đặc biệt `'`, `"`, `/`, `[`, `]`.
-3. **Chuyển sang cơ sở dữ liệu**: Nếu dữ liệu quan trọng, migrate từ XML file sang database có hệ thống phân quyền.
-4. **Least privilege**: Giới hạn scope XPath query chỉ truy vấn node cần thiết.
-5. **Error handling**: Không expose XPath error message ra cho client.
+- **Tóm tắt**: Sử dụng các truy vấn liên kết biến (variable binding) trong XPath và xác thực danh sách trắng các ký tự đầu vào.
+- **Các bước chi tiết**:
+  - Parameterized XPath queries: Sử dụng XPath variable binding thay vì nối chuỗi — tương tự prepared statement trong SQL.
+  - Input validation: Whitelist ký tự cho phép (alphanumeric), reject ký tự đặc biệt `'`, `"`, `/`, `[`, `]`.
+  - Chuyển sang cơ sở dữ liệu: Nếu dữ liệu quan trọng, migrate từ XML file sang database có hệ thống phân quyền.
+  - Least privilege: Giới hạn scope XPath query chỉ truy vấn node cần thiết.
+  - Error handling: Không expose XPath error message ra cho client.
 
-## 💻 Code Example
+## Code Example
 
 ```python
 # === VULNERABLE CODE ===
@@ -125,8 +119,20 @@ def login_secure(username, password):
     return len(result) > 0
 ```
 
-## 📚 Nguồn tham khảo
+## Xem thêm
+
+- [SQL Injection](../sql-injection/) — Lỗ hổng chèn mã truy vấn cấu trúc dữ liệu.
+
+## Nguồn tham khảo
 
 - PortSwigger: https://portswigger.net/web-security/xpath-injection
 - OWASP: https://owasp.org/www-community/attacks/XPATH_Injection
 - CWE: https://cwe.mitre.org/data/definitions/643.html
+
+## Giải thích thuật ngữ
+
+- **XPath**: Ngôn ngữ truy vấn dùng để định vị và lấy dữ liệu từ tài liệu XML.
+- **XPath Injection**: Tiêm mã XPath độc hại nhằm thay đổi truy vấn và trích xuất trái phép dữ liệu XML.
+- **XML Node**: Một nút đại diện cho một phần tử, thuộc tính hoặc văn bản trong tài liệu XML.
+- **Statement Stacking**: Kỹ thuật xếp chồng nhiều câu lệnh thực thi liên tiếp (không được hỗ trợ trong XPath).
+- **Logic Operator**: Các phép toán logic như AND, OR dùng trong câu lệnh truy vấn.

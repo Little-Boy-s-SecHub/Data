@@ -1,0 +1,13 @@
+schema_version: 1
+technical_review:
+  status: pending
+  reviewer: null
+  reviewed_at: null
+  scope: []
+  cheatsheets: []
+language_review:
+  status: pending
+  reviewer: null
+  reviewed_at: null
+  scope: []
+  cheatsheets: []

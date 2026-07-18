@@ -1,110 +1,142 @@
+---
+schema_version: 1
+id: WEB-A04-INSECURE-RANDOMNESS
+title: "Insecure Randomness"
+slug: insecure-randomness
+level: intermediate
+estimated_minutes: 50
+prerequisites:
+  - http-fundamentals
+  - authorized-security-testing
+owasp:
+  - A04:2025
+cwe:
+  - CWE-330
+content_status: technical-review
+payload_status: static-verified
+last_verified: null
+---
+
 # Insecure Randomness
 
-> **CWE**: CWE-330 | **Phân loại**: Cryptographic Failures
+> [!CAUTION]
+> Chỉ thực hành trên hệ thống bạn sở hữu hoặc có ủy quyền rõ ràng. Dùng dữ liệu giả, fixture có thể hủy và giới hạn tài nguyên; không gửi payload đến Internet hoặc mục tiêu thật.
 
-## Kiến thức Nền tảng
-Trong thế giới bảo mật số, tính ngẫu nhiên (randomness) đóng vai trò như chiếc chìa khóa vạn năng. Nó được dùng để tạo ra mã OTP gửi về điện thoại của bạn, mã khôi phục mật khẩu, mã phiên đăng nhập (session ID), hay các khóa mã hóa bảo vệ ví điện tử. Nếu những chiếc chìa khóa này được làm từ một chiếc khuôn dễ đoán, kẻ xấu hoàn toàn có thể tự đúc cho mình chiếc chìa khóa giống hệt để đột nhập vào tài khoản của bạn.
+## 1. Mục tiêu học tập
+
+Sau bài học, bạn có thể:
+
+- Giải thích Insecure Randomness bằng root cause thay vì chỉ mô tả hậu quả.
+- Nhận diện trust boundary, tài sản, actor và điều kiện cần để lỗi có thể bị khai thác.
+- Thực hiện kiểm thử có kiểm soát trong lab local và phân biệt expected result với false positive.
+- Chọn kiểm soát gốc, triển khai bản sửa và retest bằng positive, negative và boundary case.
+
+## 2. Kiến thức cần có
+
+- Seed, state và khác biệt PRNG/CSPRNG.
+
+- Python `random`, `secrets` và Node `crypto`.
+
+- Entropy budget, encoding và token lifecycle.
+
+## 3. Kiến thức nền tảng
+
+Trong thế giới bảo mật số, tính ngẫu nhiên (randomness) đóng vai trò như chiếc chìa khóa vạn năng. Nó được dùng để tạo ra mã OTP gửi về điện thoại của bạn, mã khôi phục mật khẩu, mã phiên đăng nhập (session ID), hay các khóa mã hóa bảo vệ ví điện tử. Nếu những chiếc chìa khóa này được làm từ một chiếc khuôn dễ đoán, kẻ xấu hoàn toàn có thể tự đúc cho mình chiếc chìa khóa giống hệt để đột nhập vào tài khoản của bạn. [S6]
 
 Để tạo ra các số ngẫu nhiên, các máy tính sử dụng hai loại "máy gieo số" chính:
-- **PRNG (Bộ sinh số giả ngẫu nhiên)**: Hoạt động như một cỗ máy toán học có quy luật. Nếu bạn biết công thức (thuật toán) và điểm bắt đầu (seed - hạt giống), bạn sẽ luôn nhận được một dãy số hoàn toàn giống nhau. Các hàm phổ biến như `Math.random()` trong JavaScript hay `random()` trong Python là những cỗ máy loại này. Chúng cực kỳ nhanh và phù hợp để làm game hoặc hoạt hình, nhưng đối với bảo mật, chúng là một thảm họa vì kẻ tấn công chỉ cần quan sát vài kết quả đầu ra là có thể tính ngược lại quy luật của cỗ máy.
-- **CSPRNG (Bộ sinh số giả ngẫu nhiên an toàn về mặt mật mã)**: Trái ngược với cỗ máy toán học trên, CSPRNG giống như việc bạn tung đồng xu trong một cơn bão dữ dội. Nó thu thập các yếu tố nhiễu loạn ngẫu nhiên thực tế từ môi trường xung quanh (như nhiệt độ CPU, chuyển động chuột, thời điểm ổ cứng ghi dữ liệu) để tạo ra các số hoàn toàn không thể dự đoán được. Các hàm như `crypto.randomBytes()` trong Node.js hay thư viện `secrets` trong Python chính là những chiếc khiên vững chắc này.
+- **PRNG (Bộ sinh số giả ngẫu nhiên)**: là thuật toán xác định có trạng thái. Cùng thuật toán, seed và chuỗi lời gọi sẽ cho cùng đầu ra. `Math.random()` và module `random` của Python không cam kết tính khó dự đoán về mật mã, nên không dùng cho token, session ID, OTP hoặc khóa. Khả năng khôi phục trạng thái phụ thuộc thuật toán, cách biểu diễn đầu ra và số mẫu quan sát được; không có ngưỡng “vài mẫu” áp dụng cho mọi runtime. [S6]
+- **CSPRNG (Bộ sinh số giả ngẫu nhiên an toàn về mặt mật mã)**: cũng có thể là thuật toán xác định, nhưng được thiết kế để đầu ra khó dự đoán khi không biết trạng thái nội bộ và được khởi tạo/reseed từ nguồn entropy của hệ điều hành. Trong Node.js và Python, ưu tiên API `node:crypto` và `secrets` thay vì tự thiết kế bộ sinh. [S6], [S7]
 
 ```javascript
 // Normal operation: generating a random number in JavaScript
-// Math.random() uses xorshift128+ algorithm internally
 const value = Math.random();  // Returns float between 0 and 1
 console.log(value);           // e.g., 0.7281943042158021
 
-// The internal state can be reconstructed from ~5 outputs
-// This is FINE for non-security purposes (games, UI animations)
+// This API is suitable for non-security uses, not secrets or tokens
 ```
 
-Điểm mấu chốt ở đây là: các thuật toán PRNG thông thường hoạt động trên một trạng thái (state) hữu hạn. Khi kẻ tấn công thu thập đủ số lượng mẫu đầu ra, họ có thể dùng toán học để khôi phục trạng thái này và đọc trước được tương lai.
+Điểm mấu chốt ở đây là: các thuật toán PRNG thông thường hoạt động trên một trạng thái (state) hữu hạn. Khi kẻ tấn công thu thập đủ số lượng mẫu đầu ra, họ có thể dùng toán học để khôi phục trạng thái này và đọc trước được tương lai. [S6]
 
-## Mô tả lỗ hổng
-Lỗ hổng "Tính ngẫu nhiên không an toàn" (Insecure Randomness) xuất hiện khi lập trình viên vô tình sử dụng các bộ sinh số ngẫu nhiên thông thường (PRNG) cho các mục đích bảo mật. 
+## 4. Mô tả và nguyên nhân gốc
 
-Hãy tưởng tượng bạn yêu cầu đặt lại mật khẩu và hệ thống gửi cho bạn một liên kết chứa mã khôi phục ngẫu nhiên được sinh ra từ `Math.random()`. Kẻ tấn công, bằng cách tự yêu cầu khôi phục mật khẩu cho tài khoản của chính chúng vài lần, sẽ thu thập được các mã ngẫu nhiên liên tiếp. Từ đó, chúng tính toán được mã khôi phục mật khẩu tiếp theo dành cho tài khoản của bạn và chiếm quyền điều khiển tài khoản trước khi bạn kịp nhận ra. 
+Lỗ hổng "Tính ngẫu nhiên không an toàn" (Insecure Randomness) xuất hiện khi lập trình viên vô tình sử dụng các bộ sinh số ngẫu nhiên thông thường (PRNG) cho các mục đích bảo mật. [S6]
 
-Hay nguy hiểm hơn, các mã OTP chỉ có 6 chữ số nếu được sinh ra một cách dễ đoán sẽ nhanh chóng bị bẻ gãy, khiến lớp bảo mật hai yếu tố (2FA) trở nên vô dụng. Tương tự, session ID hay các khóa mã hóa được sinh một cách hời hợt cũng là chiếc vé thông hành miễn phí mời gọi tin tặc vào nhà.
+Ví dụ, token đặt lại mật khẩu được tạo bằng PRNG seed theo thời gian có thể bị thu hẹp không gian tìm kiếm nếu actor biết gần đúng thời điểm và thuật toán. Việc quan sát token của chính actor không tự động chứng minh có thể dự đoán token của người khác; phải xác nhận cùng bộ sinh, thứ tự lời gọi và không có entropy bí mật bổ sung. [S6]
 
-## Cơ chế tấn công
-### 1. Dự đoán Math.random() trong V8 (Chrome/Node.js)
+Hay nguy hiểm hơn, các mã OTP chỉ có 6 chữ số nếu được sinh ra một cách dễ đoán sẽ nhanh chóng bị bẻ gãy, khiến lớp bảo mật hai yếu tố (2FA) trở nên vô dụng. Tương tự, session ID hay các khóa mã hóa được sinh một cách hời hợt cũng là chiếc vé thông hành miễn phí mời gọi tin tặc vào nhà. [S6]
 
-V8 engine sử dụng thuật toán **xorshift128+** cho `Math.random()`. Chỉ cần biết **3-5 output liên tiếp**, attacker có thể khôi phục internal state bằng Z3 SMT solver:
 
+## 5. Mô hình đe dọa và điều kiện khai thác
+
+- **Tài sản:** reset token, session ID và OTP synthetic.
+
+- **Actor:** observer biết public seed hoặc nhiều đầu ra; không có trạng thái CSPRNG nội bộ.
+
+- **Trust boundary:** API random của Node.js/Python tạo giá trị dùng làm secret.
+
+- **Điều kiện cần:** ứng dụng dùng PRNG dự đoán được, seed yếu hoặc không đủ không gian/giới hạn thử.
+
+- **Môi trường:** Python 3.12 random.Random và Node.js crypto pin version, process local, no network.
+
+Tính duy nhất như UUID không đồng nghĩa bí mật; session token phải opaque, đủ entropy và sinh từ OS CSPRNG. [S6], [S7]
+
+## 6. Cơ chế tấn công
+
+Ứng dụng biến đầu ra PRNG dự đoán được thành token/OTP. Khi actor biết seed/state hoặc không gian nhỏ, chuỗi tương lai có thể tái tạo; OS CSPRNG với lifecycle đúng loại bỏ giả định đó. [S6], [S7]
+
+## 7. Kiểm thử trong lab được ủy quyền
+
+1. **Setup:** chạy process Python/Node local với seed fixture công khai và không external input.
+2. **Baseline:** hai CSPRNG outputs khác nhau; format/length đáp ứng contract.
+3. **Thao tác:** tạo hai random.Random cùng seed để chứng minh chuỗi trùng; không brute-force token.
+4. **Expected result:** PRNG fixture tái tạo được; code sửa dùng randomBytes/secrets và regression không dựa vào giá trị cố định.
+5. **Boundary:** kiểm tra lỗi entropy source, fork/reseed, token expiration và rate cap riêng.
+6. **Cleanup:** xóa token/log fixture và terminate process.
+
+## 8. Payload và phạm vi áp dụng
+
+Các block dưới đây được giữ để technical review.
+
+`static-verified` chỉ xác nhận cấu trúc và annotation đã qua gate tĩnh.
+
+Trạng thái này không chứng minh payload hoạt động trên mọi phiên bản.
+
+Trước khi chạy, phải đối chiếu context, điều kiện, encoding, expected result và risk.
+
+Payload mở rộng thuộc `cheatsheets/`; lesson chỉ giữ ví dụ cốt lõi.
+
+Ví dụ cốt lõi chỉ minh họa tính lặp lại của PRNG khi seed bị lộ. Nó không dùng token, tài khoản hoặc endpoint thật.
+
+<!-- payload-id: WEB-A04-INSECURE-RANDOMNESS-001 -->
+<!-- context: Python 3.12 standard-library random.Random; local process; deterministic-generator behavior [S6] -->
+<!-- prerequisites: no external input or network access -->
+<!-- encoding: UTF-8 Python source; decimal seed is parsed as an integer; no transport or secondary decoding -->
+<!-- expected-result: both sequences are equal because both generators use the same public seed -->
+<!-- risk: non-destructive -->
+<!-- runnable: false -->
+<!-- validation: static-verified -->
+<!-- sources: S6 -->
+<!-- last-verified: 2026-07-17 -->
 ```python
-# Using z3-solver to crack xorshift128+ state
-from z3 import *
+import random
 
-# Attacker collects sequential Math.random() outputs from the target
-observed = [0.7281943042, 0.1538294017, 0.9824571036, 0.4019283746, 0.6293847102]
+public_seed = 20260717
+first = random.Random(public_seed)
+second = random.Random(public_seed)
 
-# Convert float outputs back to 64-bit state values
-def float_to_state(f):
-    return int(f * (2**52)) | 0x3FF0000000000000
-
-# Set up Z3 constraints to solve for internal state
-state0, state1 = BitVecs('state0 state1', 64)
-solver = Solver()
-
-# Add constraints based on xorshift128+ algorithm
-# Once solved, attacker can predict ALL future outputs
+sequence_a = [first.randrange(1_000_000) for _ in range(4)]
+sequence_b = [second.randrange(1_000_000) for _ in range(4)]
+assert sequence_a == sequence_b
 ```
 
-### 2. Predictable Seed Attack
+## 9. Code dễ bị lỗi và code an toàn
 
-```java
-// Attacker knows the server restarted at a specific time
-// java.util.Random seeded with System.currentTimeMillis()
-long estimatedSeed = 1719489337000L;  // Approximate restart timestamp
-
-// Try seeds within a small window (±5 seconds)
-for (long seed = estimatedSeed - 5000; seed <= estimatedSeed + 5000; seed++) {
-    Random rng = new Random(seed);
-    String token = generateToken(rng);  // Reproduce the token generation
-    if (tryPasswordReset(token)) {
-        System.out.println("Account hijacked with seed: " + seed);
-        break;
-    }
-}
-```
-
-### 3. Sequential/Time-based Token Prediction
-
-```python
-# Vulnerable app generates tokens based on timestamp
-import time
-import hashlib
-
-# Attacker observes their own reset token and timestamp
-my_token = "a3f2b8c1..."
-my_timestamp = 1719489337
-
-# Predict victim's token generated seconds later
-for offset in range(0, 60):
-    predicted = hashlib.md5(str(my_timestamp + offset).encode()).hexdigest()
-    if try_reset(victim_email, predicted):
-        print(f"Success! Token predicted with offset={offset}")
-        break
-```
-
-## Biện pháp phòng thủ
-- **Tóm tắt**: Phòng chống lỗi sử dụng giá trị ngẫu nhiên không an toàn bằng cách sử dụng bộ tạo số ngẫu nhiên an toàn về mặt mật mã (CSPRNG), tránh sử dụng seed dựa trên thời gian, đảm bảo đủ entropy và giới hạn tần suất yêu cầu.
-- **Các bước chi tiết**:
-  - **Luôn sử dụng CSPRNG**: sử dụng CSPRNG cho mọi giá trị liên quan đến bảo mật như token, session ID, khóa, vector khởi tạo (IV), và salt.
-  - **Không sử dụng seed dựa trên thời gian (No time-based seeds)**: tránh sử dụng các giá trị thời gian hệ thống như `System.currentTimeMillis()`, `Date.now()` làm seed.
-  - **Đảm bảo đủ entropy (Provide sufficient entropy)**: token phải đảm bảo có ít nhất 128 bits entropy (ví dụ: 32 ký tự hex hoặc 24 ký tự base64).
-  - **Sử dụng các framework tiêu chuẩn**: ưu tiên sử dụng cơ chế quản lý phiên của các framework hiện đại đã được tích hợp sẵn CSPRNG.
-  - **Giới hạn tần suất (Rate limiting)**: giới hạn số lần thử/nhập token để giảm thiểu khả năng bị tấn công vét cạn (brute-force).
-
-## Code Example
 ```javascript
 // ❌ VULNERABLE: Using Math.random() for security-sensitive values
 function generateResetToken() {
     // Math.random() is NOT cryptographically secure
     const token = Math.random().toString(36).substring(2, 15);
-    return token;  // e.g., "k5x8f2m9q1w" - predictable!
+    return token;  // The runtime does not guarantee cryptographic unpredictability
 }
 
 function generateSessionId() {
@@ -113,7 +145,7 @@ function generateSessionId() {
 }
 
 function generateOTP() {
-    // Only 27,000 possible values with Math.random()
+    // The space has 1,000,000 values, but Math.random() is not a CSPRNG
     return Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
 }
 ```
@@ -129,15 +161,13 @@ function generateResetToken() {
 }
 
 function generateSessionId() {
-    // Use crypto.randomUUID() for unique session identifiers
-    return crypto.randomUUID();
-    // e.g., "550e8400-e29b-41d4-a716-446655440000"
+    // Generate an opaque 256-bit session identifier from the OS CSPRNG
+    return crypto.randomBytes(32).toString('base64url');
 }
 
 function generateOTP() {
-    // Uniform distribution from CSPRNG, no modulo bias
-    const buffer = crypto.randomBytes(4);
-    const value = buffer.readUInt32BE(0) % 1000000;
+    // randomInt uses the CSPRNG and avoids modulo bias
+    const value = crypto.randomInt(0, 1_000_000);
     return value.toString().padStart(6, '0');
 }
 ```
@@ -146,31 +176,83 @@ function generateOTP() {
 # ✅ SECURE: Python equivalent using secrets module
 import secrets
 
-# Generate URL-safe token (default 32 bytes = 256 bits)
+# Explicitly request 32 random bytes, then encode them for URLs
 reset_token = secrets.token_urlsafe(32)
 
-# Generate random integer for OTP
+# A six-digit OTP has a small output space even with a CSPRNG; enforce
+# short expiry, one-time use and attempt limits in the verification flow.
 otp = secrets.randbelow(1000000)
 
 # Compare tokens in constant time to prevent timing attacks
 is_valid = secrets.compare_digest(user_token, stored_token)
 ```
 
+## 10. Phát hiện
 
-## Xem thêm
+- Tái tạo chuỗi từ seed công khai trong fixture và phân biệt với OS-backed CSPRNG. [S6], [S7]
+
+- Review API sinh token/OTP/key, cách seed và nơi token bị truncate/encode. [S6], [S7]
+
+- Không ghi token thật; chỉ log length, source API và collision test synthetic.
+
+## 11. Phòng thủ
+
+### Kiểm soát bắt buộc
+
+- Sinh secret bằng API CSPRNG của platform và số byte phù hợp với threat model. [S6], [S7]
+
+- Quản lý token lifecycle: scope, expiry, single-use và invalidation theo use case. [S6]
+
+### Defense-in-depth
+
+- Rate limit giúp giảm online guessing cho OTP không gian nhỏ.
+
+- Encoding/UUID chỉ biểu diễn dữ liệu, không tự thêm entropy.
+
+## 12. Retest
+
+- **Positive:** token đúng độ dài và luồng consume/invalidate hoạt động.
+
+- **Negative:** seed cố định hoặc API non-crypto bị gate/code review chặn.
+
+- **Boundary:** fork/process restart, truncation, concurrency và entropy failure.
+
+- **Telemetry:** ghi API/version và lifecycle event, không ghi secret.
+
+## 13. Sai lầm thường gặp
+
+- Dùng `random`/`Math.random()` cho token bảo mật.
+
+- Seed bằng timestamp rồi coi output là bí mật.
+
+- Đếm ký tự encoded như số bit entropy.
+
+- Gọi mọi PRNG là không an toàn; CSPRNG cũng thường là bộ sinh tất định có thiết kế riêng.
+
+## 14. Tóm tắt và checklist
+
+- [ ] Root cause, hậu quả và kỹ thuật khai thác đã được tách riêng.
+- [ ] Actor, role/authentication, trust boundary, công nghệ và phiên bản đã rõ.
+- [ ] Payload có ID duy nhất, context, encoding, điều kiện, expected result, risk, validation và source.
+- [ ] Code dễ lỗi/an toàn dùng cùng framework, phiên bản và use case.
+- [ ] Kiểm soát bắt buộc không bị thay thế bằng defense-in-depth.
+- [ ] Positive, negative, boundary case và telemetry đã qua retest.
+- [ ] Claim nhạy cảm có source marker và mọi link chỉ nằm ở mục 16–17.
+- [ ] Cleanup hoàn tất; không còn secret, target thật, callback Internet hoặc dữ liệu khách hàng.
+
+## 15. Giải thích thuật ngữ
+
+- **Entropy:** độ bất định của nguồn dùng để seed/reseed bộ sinh. [S6]
+
+- **PRNG:** bộ sinh tất định mở rộng seed thành chuỗi đầu ra. [S6]
+
+- **CSPRNG:** bộ sinh được thiết kế để đầu ra khó dự đoán khi state bí mật và lifecycle đúng. [S6], [S7]
+
+## 16. Bài liên quan và đọc thêm
+
 - [DNS Poisoning](../dns-poisoning/) — Xem thêm bài học về DNS Poisoning.
 
-## Nguồn tham khảo
-- PortSwigger: https://portswigger.net/web-security/authentication/other-mechanisms
-- OWASP – Insecure Randomness: https://owasp.org/www-community/vulnerabilities/Insecure_Randomness
-- CWE-330: https://cwe.mitre.org/data/definitions/330.html
-- V8 Math.random() Predictor: https://github.com/psmolak/v8-randomness-predictor
+## 17. Tài liệu tham khảo
 
-## Giải thích thuật ngữ
-- **Entropy**: Khái niệm đo lường mức độ hỗn loạn hoặc tính không thể dự đoán trước của dữ liệu. Entropy càng cao thì giá trị được tạo ra càng ngẫu nhiên và khó đoán.
-- **Seed (Hạt giống)**: Giá trị ban đầu được truyền vào bộ sinh số ngẫu nhiên để khởi tạo chuỗi số. Nếu sử dụng cùng một hạt giống với cùng một thuật toán PRNG, kết quả thu được sẽ luôn trùng khớp hoàn toàn.
-- **Deterministic (Tính xác định)**: Đặc tính của một hệ thống hoặc thuật toán mà ở đó đầu ra hoàn toàn bị quyết định bởi đầu vào và trạng thái hiện tại, không có yếu tố ngẫu nhiên thực sự nào.
-- **PRNG (Pseudo-Random Number Generator)**: Bộ sinh số giả ngẫu nhiên, sử dụng các công thức toán học để tạo ra chuỗi số trông có vẻ ngẫu nhiên. Nó có tính xác định và không an toàn cho mục đích bảo mật.
-- **CSPRNG (Cryptographically Secure Pseudo-Random Number Generator)**: Bộ sinh số giả ngẫu nhiên an toàn về mặt mật mã, kết hợp nguồn entropy vật lý để sinh ra các số ngẫu nhiên không thể dự đoán trước, ngay cả khi kẻ tấn công biết tất cả các số đã sinh ra trước đó.
-- **Session ID**: Một chuỗi ký tự duy nhất được máy chủ cấp cho người dùng sau khi đăng nhập thành công, đại diện cho phiên làm việc hiện tại của người dùng đó.
-- **OTP (One-Time Password)**: Mật khẩu dùng một lần, thường có hiệu lực trong thời gian rất ngắn (vài chục giây đến vài phút) để xác thực người dùng trong các giao dịch quan trọng.
+- **[S6]** Python 3.12 documentation — `random` and `secrets`. https://docs.python.org/3.12/library/random.html — phiên bản: Python 3.12; truy cập: 2026-07-17.
+- **[S7]** Node.js documentation — `crypto.randomBytes()` and `crypto.randomInt()`. https://nodejs.org/api/crypto.html — phiên bản/trạng thái: bản hiện hành; truy cập: 2026-07-17.

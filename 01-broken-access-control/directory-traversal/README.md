@@ -1,13 +1,52 @@
+---
+schema_version: 1
+id: WEB-A01-DIRECTORY-TRAVERSAL
+title: "Directory Traversal"
+slug: directory-traversal
+level: beginner
+estimated_minutes: 35
+prerequisites:
+  - http-fundamentals
+  - authorized-security-testing
+  - authentication-vs-authorization
+owasp:
+  - A01:2025
+cwe:
+  - CWE-22
+content_status: technical-review
+payload_status: static-verified
+last_verified: null
+---
+
 # Directory Traversal
 
-> **CWE**: CWE-22 | **Phân loại**: Access Control
+> [!CAUTION]
+> Chỉ thực hành trên hệ thống bạn sở hữu hoặc có ủy quyền rõ ràng. Dùng dữ liệu giả, fixture có thể hủy và giới hạn tài nguyên; không gửi payload đến Internet hoặc mục tiêu thật.
 
-## Kiến thức Nền tảng
-Hãy tưởng tượng hệ thống tệp tin trên máy chủ web giống như một thư viện lưu trữ tài liệu khổng lồ. Trong đó, mỗi phòng ban có một tủ hồ sơ riêng và nhân viên chỉ được phép xem các tài liệu trong tủ hồ sơ của phòng mình. Để giữ an toàn, người quản lý thư viện đã đặt quy định: "Bạn chỉ được phép tìm kiếm hồ sơ trong phạm vi ngăn tủ công cộng được chỉ định". 
+## 1. Mục tiêu học tập
 
-Tuy nhiên, trong cấu trúc đường dẫn của máy tính, có một "phép thuật" dịch chuyển ngược dòng, đó là ký hiệu `../` (đại diện cho việc lùi lại một thư mục cha). Nếu hệ thống quản lý thư viện quá ngây thơ, nhận yêu cầu tìm kiếm từ bạn và đi thẳng vào kho mà không kiểm tra xem bạn có đang lén lút dùng ký hiệu "lùi lại" này hay không, một điều nguy hại sẽ xảy ra. Kẻ tấn công chỉ cần viết yêu cầu dưới dạng `../` nhiều lần liên tiếp để đi ngược ra khỏi tủ hồ sơ công cộng, lách qua cửa bảo vệ, và đi thẳng vào ngăn kéo lưu trữ thông tin tuyệt mật của hệ điều hành (như tệp lưu mật khẩu hệ thống hay mã khóa bảo mật). Cơ chế phân giải đường dẫn (path resolution) của máy chủ nếu không được lập trình để chặn đứng hành vi "leo tường" này sẽ tạo điều kiện cho kẻ xấu tự do lục lọi.
+Sau bài học, bạn có thể:
 
-Ngoài ra, cấu trúc URL (URL structure) của ứng dụng thường chứa các tham số truy vấn chỉ định tài nguyên tải xuống (ví dụ: `https://example.com/download?file=report.pdf`). Trình duyệt gửi URL này dưới dạng HTTP request, và máy chủ sẽ phân tích giá trị của tham số `file` để định vị tệp trên đĩa cứng. Nếu lập trình viên không xác thực tham số này mà xử lý tệp trực tiếp, kẻ tấn công sẽ thao túng cấu trúc URL để thực hiện cuộc tấn công duyệt thư mục. Để phòng thủ hiệu quả, máy chủ bắt buộc phải phân giải đường dẫn đầu vào thành một đường dẫn tuyệt đối chuẩn hóa (canonical path) và xác thực rõ ràng xem đường dẫn đã được giải quyết có thực sự nằm bên dưới thư mục gốc được phép truy cập hay không.
+- Giải thích Directory Traversal bằng root cause thay vì chỉ mô tả hậu quả.
+- Nhận diện trust boundary, tài sản, actor và điều kiện cần để lỗi có thể bị khai thác.
+- Thực hiện kiểm thử có kiểm soát trong lab local và phân biệt expected result với false positive.
+- Chọn kiểm soát gốc, triển khai bản sửa và retest bằng positive, negative và boundary case.
+
+## 2. Kiến thức cần có
+
+- Filesystem path resolution, canonical path và symbolic link.
+
+- URL decoding và vị trí decode trong web stack.
+
+- Quyền filesystem của process chạy fixture.
+
+## 3. Kiến thức nền tảng
+
+Hãy tưởng tượng hệ thống tệp tin trên máy chủ web giống như một thư viện lưu trữ tài liệu khổng lồ. Trong đó, mỗi phòng ban có một tủ hồ sơ riêng và nhân viên chỉ được phép xem các tài liệu trong tủ hồ sơ của phòng mình. Để giữ an toàn, người quản lý thư viện đã đặt quy định: "Bạn chỉ được phép tìm kiếm hồ sơ trong phạm vi ngăn tủ công cộng được chỉ định". [S4]
+
+Trong cấu trúc đường dẫn, một phân đoạn tham chiếu thư mục cha làm bộ phân giải lùi lên một cấp. Nếu ứng dụng nối nhiều phân đoạn như vậy từ input vào thư mục gốc mà không chuẩn hóa và kiểm tra containment, đường dẫn cuối cùng có thể thoát khỏi cây tài nguyên được phép. Cơ chế và chuỗi kiểm thử cụ thể được cô lập ở mục 8; phần nền tảng chỉ cần ghi nhớ rằng kiểm tra chuỗi trước khi phân giải không chứng minh được tệp cuối cùng vẫn nằm trong thư mục cho phép. [S2] [S4]
+
+Ngoài ra, cấu trúc URL (URL structure) của ứng dụng thường chứa các tham số truy vấn chỉ định tài nguyên tải xuống (ví dụ: `https://victim.lab.test/download?file=report.pdf`). Trình duyệt gửi URL này dưới dạng HTTP request, và máy chủ sẽ phân tích giá trị của tham số `file` để định vị tệp trên đĩa cứng. Nếu lập trình viên không xác thực tham số này mà xử lý tệp trực tiếp, kẻ tấn công sẽ thao túng cấu trúc URL để thực hiện cuộc tấn công duyệt thư mục. Để phòng thủ hiệu quả, máy chủ bắt buộc phải phân giải đường dẫn đầu vào thành một đường dẫn tuyệt đối chuẩn hóa (canonical path) và xác thực rõ ràng xem đường dẫn đã được giải quyết có thực sự nằm bên dưới thư mục gốc được phép truy cập hay không. [S4]
 
 ```python
 # Safe path resolution check to prevent directory traversal
@@ -17,28 +56,70 @@ def get_safe_filepath(user_filename, base_dir="/var/www/safe_uploads"):
     """
     Resolves the target file path and ensures it does not escape the base directory.
     """
-    # Convert base directory to an absolute canonical path
-    base_path = Path(base_dir).resolve()
-    
-    # Combine the base path with the user-provided filename and resolve it
-    # This automatically eliminates dynamic path segments like '..' or symlinks
-    target_path = Path(base_path, user_filename).resolve()
-    
+    # The lab directory is not writable by the requesting user. Canonicalize
+    # only paths that already exist so missing components cannot hide behavior.
+    base_path = Path(base_dir).resolve(strict=True)
+
+    # Resolve parent segments and existing symlinks at validation time.
+    target_path = Path(base_path, user_filename).resolve(strict=True)
+
     # Verify that the resolved target path is still located within the base path
     if not target_path.is_relative_to(base_path):
         # Deny access if a path traversal attempt is detected
         raise PermissionError("Access Denied: Requested file escapes the base directory.")
-        
+
+    # If an attacker can mutate this directory, use a descriptor-relative open
+    # with no-follow semantics instead of returning a path after this check.
     return target_path
 ```
 
-## Mô tả lỗ hổng
-Lỗ hổng **Duyệt thư mục** (Directory Traversal hoặc Path Traversal) xuất hiện khi ứng dụng tin tưởng mù quáng vào đường dẫn hoặc tên tệp tin do người dùng nhập vào. 
+## 4. Mô tả và nguyên nhân gốc
 
-Nó cực kỳ nguy hiểm vì nó giống như việc bạn đưa cho thủ thư một mảnh giấy ghi: "Cho tôi xem tài liệu nằm ở: `phòng_công_cộng/../../../thư_mục_hệ_thống/mật_khẩu.txt`", và người thủ thư cứ thế đi lấy mà không mảy may suy nghĩ. Bằng cách lách qua các thư mục giới hạn thông qua các ký tự tương đối, kẻ tấn công có thể đọc trộm các tệp cấu hình chứa mật khẩu cơ sở dữ liệu, mã nguồn của ứng dụng, hay thậm chí là các tệp hệ thống nhạy cảm nhất. Điều này biến một ứng dụng tưởng chừng an toàn thành một "lỗ hổng mở" khiến toàn bộ bí mật của máy chủ bị phơi bày ra ngoài.
+Lỗ hổng **Duyệt thư mục** (Directory Traversal hoặc Path Traversal) xuất hiện khi ứng dụng tin tưởng mù quáng vào đường dẫn hoặc tên tệp tin do người dùng nhập vào. [S4]
 
-## Cơ chế tấn công
-Một ứng dụng tải xuống thực đơn nhà hàng thông qua một tham số (ví dụ: menu=menu1.pdf). Trix thao túng tham số này, yêu cầu menu=../../../../ssl/private.key. Máy chủ nối đường dẫn này một cách ngây thơ và đọc tệp, làm lộ khóa SSL riêng tư của máy chủ cho kẻ tấn công.
+Nguyên nhân gốc là ứng dụng để input quyết định đường dẫn tệp rồi mở kết quả mà không ánh xạ qua định danh phía máy chủ hoặc không xác nhận đường dẫn canonical nằm trong thư mục cho phép. Hậu quả phụ thuộc quyền của tiến trình: ứng dụng có thể đọc nhầm dữ liệu ngoài phạm vi hoặc ghi vào vị trí không được thiết kế cho chức năng đó. [S2] [S4]
+
+
+## 5. Mô hình đe dọa và điều kiện khai thác
+
+- **Tài sản:** các file ngoài thư mục menu được phép; lab chỉ có marker /srv/lab/lab-secret.txt.
+
+- **Actor:** client chưa đăng nhập hoặc đã đăng nhập nếu endpoint download yêu cầu session.
+
+- **Trust boundary:** tham số file đi vào phép nối/resolve đường dẫn của Python 3.12.
+
+- **Điều kiện cần:** actor kiểm soát tên file và handler không ánh xạ allowlist hoặc không kiểm tra đường dẫn đã resolve.
+
+- **Môi trường:** filesystem container disposable; query được decode đúng một lần; không symlink ra host.
+
+Chỉ kết luận khi log open() và nội dung LAB_ONLY_SECRET chứng minh file ngoài base directory đã được đọc. [S1]
+
+## 6. Cơ chế tấn công
+
+Handler nối tên file do client cung cấp vào base path. Các segment cha hoặc cách decode tương đương làm đường dẫn đã resolve thoát khỏi base directory nếu không có allowlist/containment check. [S1]
+
+## 7. Kiểm thử trong lab được ủy quyền
+
+1. **Setup:** tạo /srv/lab/public/menus cùng file menu hợp lệ và file marker synthetic bên ngoài; bật file-access log.
+2. **Baseline:** tải breakfast.txt hoặc opaque menu ID hợp lệ.
+3. **Thao tác:** gửi đúng payload đã annotation ở mục 8; sau đó thử biến thể percent-encoded như một boundary case riêng.
+4. **Expected result:** bản lỗi trả LAB_ONLY_SECRET; bản sửa chỉ chấp nhận allowlist và trả 404 mà không mở file ngoài base.
+5. **Boundary:** kiểm tra đường dẫn tuyệt đối, separator khác, double decoding và symlink chỉ trong container.
+6. **Cleanup:** xóa container và xác nhận không có file hệ thống/host nào được truy cập.
+
+## 8. Payload và phạm vi áp dụng
+
+Các block dưới đây được giữ để technical review.
+
+`static-verified` chỉ xác nhận cấu trúc và annotation đã qua gate tĩnh.
+
+Trạng thái này không chứng minh payload hoạt động trên mọi phiên bản.
+
+Trước khi chạy, phải đối chiếu context, điều kiện, encoding, expected result và risk.
+
+Payload mở rộng thuộc `cheatsheets/`; lesson chỉ giữ ví dụ cốt lõi.
+
+Một ứng dụng lab tải thực đơn thông qua tham số `file=menu1.txt`. Nếu máy chủ nối trực tiếp input vào thư mục gốc, chuỗi `../` có thể thoát khỏi thư mục được phép và đọc `lab-secret.txt` trong fixture. Không dùng tệp hệ thống hoặc dữ liệu thật để minh họa. [S4]
 
 ### Các biến thể encoding để bypass filter:
 | Payload | Ý nghĩa |
@@ -47,63 +128,120 @@ Một ứng dụng tải xuống thực đơn nhà hàng thông qua một tham s
 | `%2e%2e%2f` | URL encode toàn phần |
 | `..%2f` | Chỉ encode `/` |
 | `%2e%2e/` | Chỉ encode `.` |
-| `....//` | Double slash bypass |
+| `....//` | Chỉ có thể vượt bộ lọc xóa `../` một lần; không phải biến thể phổ quát |
 | `..\` | Windows path separator |
 | `%252e%252e%252f` | Double URL encode |
-| `..%c0%af` | Unicode overlong encoding |
+| `..%c0%af` | Legacy: chỉ liên quan decoder UTF-8 cũ chấp nhận overlong sequence; decoder hiện hành phải từ chối [S3] |
 
 ### Ví dụ HTTP request minh họa Directory Traversal:
+<!-- payload-id: WEB-A01-DIRECTORY-TRAVERSAL-001 -->
+<!-- context: HTTP/1.1; fixture root /srv/lab/public/menus; synthetic file /srv/lab/lab-secret.txt; path-containment model [S4] -->
+<!-- prerequisites: local fixture normalizes the query once and joins it to the configured menu directory -->
+<!-- encoding: ASCII request-target with literal ../ segments; raw harness emits CRLF; request has no body or Content-Length -->
+<!-- expected-result: vulnerable fixture returns the marker LAB_ONLY_SECRET; fixed fixture returns 404 without opening a file outside the allowlist -->
+<!-- risk: non-destructive -->
+<!-- runnable: false -->
+<!-- validation: static-verified -->
+<!-- sources: S1 -->
+<!-- last-verified: 2026-07-17 -->
 ```http
-# Mỗi ../ đi lên 1 thư mục cha
-GET /download?file=../../../../etc/passwd HTTP/1.1
-Host: vulnerable-app.com
-# ../ lần 1: ra khỏi /var/www/html/uploads
-# ../ lần 2: ra khỏi /var/www/html
-# ../ lần 3: ra khỏi /var/www
-# ../ lần 4: về root /
-# → đọc /etc/passwd (file chứa tên người dùng hệ thống)
+# Each ../ segment moves up one parent directory
+GET /download?file=../../lab-secret.txt HTTP/1.1
+Host: files.lab.test
+# The vulnerable fixture returns the synthetic marker LAB_ONLY_SECRET
 ```
 
-## Biện pháp phòng thủ
-- **Tóm tắt**: Giải quyết các đường dẫn thành các vị trí tuyệt đối, kiểm tra xem chúng có nằm trong thư mục cơ sở hay không, và hạn chế các đặc quyền truy cập tệp.
-- **Các bước chi tiết**:
-  - Tránh truyền tên tệp trực tiếp trong các tham số người dùng; thay vào đó, hãy sử dụng ánh xạ gián tiếp (như ID số hoặc các khóa tra cứu).
-  - Nếu tên tệp phải do người dùng nhập, hãy xác thực chúng dựa trên danh sách trắng nghiêm ngặt chỉ chứa các ký tự chữ và số được phép.
-  - Giải quyết các đường dẫn đầu vào thành các đường dẫn tuyệt đối bằng cách sử dụng các hàm chuẩn hóa (ví dụ: Path.resolve() của Python) và xác minh rõ ràng rằng đường dẫn đích đã được giải quyết nằm bên trong thư mục cơ sở dự kiến.
-  - Đảm bảo tiến trình máy chủ web chạy dưới một tài khoản người dùng bị hạn chế với các đặc quyền đọc chỉ giới hạn nghiêm ngặt trong các tài sản công cộng và cách ly ứng dụng bằng containerization hoặc chroot jails.
+## 9. Code dễ bị lỗi và code an toàn
 
-## Code Example
 ```python
-import os
 from pathlib import Path
 
-def safe_read_file(user_filename, base_directory="/var/www/uploads"):
-    # Convert base directory to absolute path
-    base_path = Path(base_directory).resolve()
-    
-    # Combine and resolve the target path to eliminate '..' and symlinks
-    target_path = Path(base_path, user_filename).resolve()
-    
-    # Explicitly check that the resolved path stays inside the base directory
-    if not target_path.is_relative_to(base_path):
-        raise PermissionError("Access Denied: Path traversal attempt detected.")
-        
-    with open(target_path, 'r') as file:
-        return file.read()
+BASE_DIRECTORY = Path("/srv/lab/public/menus")
+ALLOWED_MENUS = {
+    "breakfast": "breakfast.txt",
+    "dinner": "dinner.txt",
+}
+
+def read_menu_vulnerable(user_filename):
+    # BAD: user input is appended directly to the trusted base directory
+    return (BASE_DIRECTORY / user_filename).read_text(encoding="utf-8")
+
+def read_menu_secure(menu_id):
+    # GOOD: the client selects an opaque ID whose filename is server-controlled
+    filename = ALLOWED_MENUS.get(menu_id)
+    if filename is None:
+        raise FileNotFoundError("Unknown menu")
+    return (BASE_DIRECTORY / filename).read_text(encoding="utf-8")
 ```
 
+## 10. Phát hiện
 
-## Xem thêm
+- Gửi tên file hợp lệ và đường dẫn thoát base; xác nhận file nào thực sự được mở trong syscall/log. [S4]
+
+- Review phép nối path, số lần decode và containment check sau canonicalization. [S4]
+
+- Log file ID, resolved path tương đối, quyết định allow/deny; không log nội dung file.
+
+## 11. Phòng thủ
+
+### Kiểm soát bắt buộc
+
+- Ưu tiên ánh xạ file ID phía server; nếu nhận tên file, resolve rồi xác nhận đích nằm trong base directory. [S4]
+
+- Từ chối absolute path, path thoát base và symlink vượt boundary theo policy rõ ràng. [S4]
+
+### Defense-in-depth
+
+- Chạy process với quyền filesystem tối thiểu.
+
+- Cô lập fixture/container để giảm blast radius.
+
+## 12. Retest
+
+- **Positive:** file allowlisted trong base directory vẫn được đọc.
+
+- **Negative:** path thoát base và absolute path bị từ chối trước open.
+
+- **Boundary:** kiểm tra encoded separator, nhiều lần decode và symlink.
+
+- **Telemetry:** xác nhận resolved path và syscall không chạm file ngoài fixture.
+
+## 13. Sai lầm thường gặp
+
+- Chỉ xóa chuỗi `../` trước khi decode.
+
+- So sánh path dạng chuỗi trước canonicalization.
+
+- Dùng prefix string không có separator boundary.
+
+- Test bằng file hệ thống thật thay vì marker synthetic.
+
+## 14. Tóm tắt và checklist
+
+- [ ] Root cause, hậu quả và kỹ thuật khai thác đã được tách riêng.
+- [ ] Actor, role/authentication, trust boundary, công nghệ và phiên bản đã rõ.
+- [ ] Payload có ID duy nhất, context, encoding, điều kiện, expected result, risk, validation và source.
+- [ ] Code dễ lỗi/an toàn dùng cùng framework, phiên bản và use case.
+- [ ] Kiểm soát bắt buộc không bị thay thế bằng defense-in-depth.
+- [ ] Positive, negative, boundary case và telemetry đã qua retest.
+- [ ] Claim nhạy cảm có source marker và mọi link chỉ nằm ở mục 16–17.
+- [ ] Cleanup hoàn tất; không còn secret, target thật, callback Internet hoặc dữ liệu khách hàng.
+
+## 15. Giải thích thuật ngữ
+
+- **Canonical path:** path sau khi runtime phân giải thành phần tương đối và liên kết theo filesystem. [S4]
+
+- **Containment check:** xác nhận object đã resolve vẫn nằm dưới base directory được phép. [S4]
+
+- **Traversal:** input làm path đích thoát khỏi cây tài nguyên dự kiến. [S4]
+
+## 16. Bài liên quan và đọc thêm
+
 - [Broken Function Level Authorization (BFLA)](../bfla/) — Xem thêm bài học về Broken Function Level Authorization (BFLA).
 
-## Nguồn tham khảo
-- **Nguồn tham khảo**: OWASP A01:2021-Broken Access Control, CWE-22 (Path Traversal)
+## 17. Tài liệu tham khảo
 
-## Giải thích thuật ngữ
-- **Path Resolution (Phân giải đường dẫn)**: Quá trình hệ điều hành chuyển đổi một đường dẫn (tương đối hoặc tuyệt đối) thành vị trí thực tế của tệp tin hoặc thư mục trên ổ cứng.
-- **Canonical Path (Đường dẫn chuẩn hóa)**: Đường dẫn tuyệt đối duy nhất và đầy đủ của một tệp tin hoặc thư mục, sau khi đã loại bỏ tất cả các ký tự di chuyển tương đối như `.` hoặc `..` và các liên kết tượng trưng (symlinks).
-- **URL Structure (Cấu trúc URL)**: Cách sắp xếp các thành phần trong một địa chỉ web (gồm giao thức, tên miền, đường dẫn và các tham số truy vấn) để định vị tài nguyên trên internet.
-- **Encoding (Mã hóa)**: Quá trình chuyển đổi dữ liệu từ định dạng này sang định dạng khác (ví dụ: URL encode chuyển đổi các ký tự đặc biệt thành dạng `%xx`) để truyền tải an toàn qua môi trường web hoặc để vượt qua các bộ lọc bảo mật.
-- **Bypass (Vượt qua)**: Kỹ thuật lách qua hoặc vô hiệu hóa các biện pháp kiểm soát bảo mật để thực hiện hành vi trái phép.
-- **Containerization (Container hóa)**: Công nghệ đóng gói ứng dụng cùng toàn bộ thư viện và cấu hình cần thiết để chạy độc lập và cách ly với hệ điều hành máy chủ (ví dụ như Docker).
-- **Chroot Jail**: Một cơ chế trên hệ điều hành Unix/Linux giúp cô lập một tiến trình bằng cách thay đổi thư mục gốc ảo của nó, ngăn không cho tiến trình đó truy cập các tệp tin bên ngoài thư mục được chỉ định.
+- **[S1]** OWASP Top 10:2025. https://owasp.org/Top10/2025/ — phiên bản/trạng thái: bản hiện hành; truy cập: 2026-07-17.
+- **[S2]** CWE-22. https://cwe.mitre.org/data/definitions/22.html — phiên bản/trạng thái: bản hiện hành; truy cập: 2026-07-17.
+- **[S3]** RFC 3629 — UTF-8, a transformation format of ISO 10646. https://www.rfc-editor.org/rfc/rfc3629.html — phiên bản/ngày: November 2003; truy cập: 2026-07-17.
+- **[S4]** OWASP Path Traversal. https://owasp.org/www-community/attacks/Path_Traversal — phiên bản/trạng thái: bản hiện hành; truy cập: 2026-07-18.

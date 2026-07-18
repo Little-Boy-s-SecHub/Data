@@ -1,13 +1,51 @@
+---
+schema_version: 1
+id: WEB-A10-XML-BOMBS
+title: "XML Bombs"
+slug: xml-bombs
+level: advanced
+estimated_minutes: 65
+prerequisites:
+  - http-fundamentals
+  - authorized-security-testing
+owasp:
+  - A02:2025
+cwe:
+  - CWE-776
+  - CWE-400
+content_status: technical-review
+payload_status: static-verified
+last_verified: null
+---
+
 # XML Bombs
 
-> **CWE**: CWE-776 (Improper Neutralization of Recursive Entity References in DTDs), CWE-400 (Uncontrolled Resource Consumption) | **Phân loại**: XML Attacks
+> [!CAUTION]
+> Chỉ thực hành trên hệ thống bạn sở hữu hoặc có ủy quyền rõ ràng. Dùng dữ liệu giả, fixture có thể hủy và giới hạn tài nguyên; không gửi payload đến Internet hoặc mục tiêu thật.
 
-## Kiến thức Nền tảng
+## 1. Mục tiêu học tập
+
+Sau bài học, bạn có thể:
+
+- Giải thích XML Bombs bằng root cause thay vì chỉ mô tả hậu quả.
+- Nhận diện trust boundary, tài sản, actor và điều kiện cần để lỗi có thể bị khai thác.
+- Thực hiện kiểm thử có kiểm soát trong lab local và phân biệt expected result với false positive.
+- Chọn kiểm soát gốc, triển khai bản sửa và retest bằng positive, negative và boundary case.
+
+## 2. Kiến thức cần có
+
+- Nắm luồng HTTP request/response và cách ứng dụng xử lý input qua các trust boundary.
+- Phân biệt authentication, authorization và validation.
+- Biết đọc code/configuration trong ngôn ngữ hoặc framework xuất hiện ở ví dụ.
+- Có lab local cô lập, dữ liệu giả, log quan sát được và quyền kiểm thử rõ ràng.
+
+## 3. Kiến thức nền tảng
+
 Hãy tưởng tượng bạn nhận được một hộp quà nhỏ từ bưu điện. Khi mở hộp ra, bạn thấy bên trong có 10 chiếc hộp nhỏ hơn. Mở mỗi chiếc hộp nhỏ đó, bạn lại thấy 10 chiếc hộp nhỏ hơn nữa. Quá trình này lặp lại liên tục. Ban đầu chiếc hộp trông rất gọn nhẹ, nhưng khi bạn cố mở hết ra, đống hộp khổng lồ sẽ tràn ngập khắp căn phòng của bạn, không còn chỗ để thở.
 Trong ngôn ngữ XML, cơ chế này tương đương với **Lồng thực thể (XML Entity Nesting)**. XML cho phép lập trình viên tạo ra các "phím tắt" (gọi là thực thể - entities) thông qua định nghĩa DTD để viết code nhanh hơn. Một phím tắt này có thể gọi đến các phím tắt khác lồng nhau.
 
 Khi hệ thống dịch mã XML (XML Parser) đọc tệp tin này, nó sẽ thực hiện nhiệm vụ dịch nghĩa các phím tắt đó ra nội dung thực tế (quá trình **Entity Expansion** - mở rộng thực thể).
-Nếu trình phân dịch này quá ngây thơ và không có giới hạn an toàn, cấu trúc lồng nhau dạng lũy thừa (chỉ cần lồng nhau 9 cấp, mỗi cấp nhân bản 10 lần) sẽ tạo ra một hiệu ứng dây chuyền kinh hoàng: 1 từ viết tắt ban đầu sẽ phình to thành 1 tỷ từ thô trong bộ nhớ!
+Nếu parser không có giới hạn an toàn, cấu trúc lồng nhau dạng lũy thừa (9 cấp, mỗi cấp tham chiếu thực thể trước 10 lần) có thể tạo ra tới một tỷ lần thay thế của thực thể gốc.
 Chiếc tệp XML siêu nhỏ ban đầu chỉ nặng khoảng vài Kilobytes bỗng chốc biến thành một "quả bom tấn" phình to lên hàng trăm Megabytes hoặc hàng Gigabytes dữ liệu trong RAM. Máy chủ xử lý không kịp, cạn kiệt bộ nhớ (Out of Memory) và sụp đổ ngay lập tức.
 
 ### Minh họa hoạt động bình thường (Normal Operation)
@@ -19,7 +57,7 @@ import defusedxml.ElementTree as ET
 normal_xml_data = """<?xml version="1.0" encoding="UTF-8"?>
 <profile>
     <name>Jane Doe</name>
-    <email>jane.doe@example.com</email>
+    <email>jane.doe@victim.lab.test</email>
     <role>Developer</role>
 </profile>
 """
@@ -29,12 +67,12 @@ def parse_user_profile(xml_string):
         # Securely parse the XML string
         # defusedxml automatically blocks dynamic entity expansion and DTD declaration injection
         root = ET.fromstring(xml_string)
-        
+
         # Extract text content safely from the validated nodes
         name = root.find('name').text
         email = root.find('email').text
         role = root.find('role').text
-        
+
         print(f"Profile Loaded - Name: {name}, Email: {email}, Role: {role}")
         return {"name": name, "email": email, "role": role}
     except ET.ParseError as e:
@@ -45,70 +83,164 @@ def parse_user_profile(xml_string):
 parse_user_profile(normal_xml_data)
 ```
 
-## Mô tả lỗ hổng
+## 4. Mô tả và nguyên nhân gốc
+
 Lỗ hổng **XML Bomb (còn được gọi là Billion Laughs - Quả bom một tỷ tiếng cười)** là một chiếc bẫy tinh vi nhắm vào bộ nhớ của máy chủ. Nó xảy ra do các thư viện phân tích cú pháp XML cũ mặc định cho phép người dùng tự định nghĩa các từ viết tắt đệ quy.
 
 Kẻ tấn công chỉ cần gửi một đoạn dữ liệu XML cực nhỏ nhưng chứa cấu trúc lồng nhau đệ quy.
 Sự nguy hiểm của lỗ hổng này nằm ở chỗ:
 - Máy chủ không thể nhận biết tệp tin này nguy hiểm chỉ qua dung lượng tải lên (vì tệp tin thực tế cực kỳ nhẹ, dễ dàng vượt qua các bộ lọc kích thước file).
-- Chỉ khi máy chủ bắt đầu phân tích cú pháp (parse) và giải nén các thực thể lồng nhau, "quả bom" mới bắt đầu phát nổ. Nó vắt kiệt từng byte RAM và chiếm dụng 100% CPU để xử lý chuỗi ký tự khổng lồ, khiến toàn bộ máy chủ bị treo và ngừng phục vụ tất cả người dùng khác (DoS).
+- Chỉ khi parser mở rộng các thực thể lồng nhau, mức sử dụng CPU/bộ nhớ mới tăng mạnh; kết quả cụ thể phụ thuộc parser, phiên bản và giới hạn tài nguyên. Expat 2.4.1 trở lên có bảo vệ cho Billion Laughs, nhưng bản Python liên kết với thư viện hệ thống có thể khác nên phải kiểm tra `pyexpat.EXPAT_VERSION`. [S4]
 
-## Cơ chế tấn công
-Kẻ tấn công gửi một tệp XML chứa các định nghĩa thực thể lồng nhau (ví dụ: định nghĩa thực thể `lol1` chứa 10 thực thể `lol`, thực thể `lol2` chứa 10 thực thể `lol1`, cứ như thế lặp lại 9 cấp đến `lol9`). Khi parser phân tích cú pháp và cố gắng mở rộng thực thể `lol9` này ra văn bản thô, 1 thực thể ban đầu sẽ nhân bản thành 1 tỷ thực thể `lol`. Điều này khiến kích thước tệp ban đầu chỉ khoảng 1 KB phình to thành hàng trăm megabytes dữ liệu trong bộ nhớ RAM của máy chủ, vắt kiệt tài nguyên xử lý và làm sập ứng dụng.
+> **Gate kỹ thuật:** các nguồn cần được đối chiếu trực tiếp cho từng claim trước khi đổi `content_status` sang `verified`: [S1], [S2], [S3].
 
-## Biện pháp phòng thủ
+## 5. Mô hình đe dọa và điều kiện khai thác
+
+- **Tài sản:** CPU, memory, thời gian xử lý và worker của XML parser/service.
+- **Trust boundary:** XML body do client gửi đi vào parser với cấu hình DTD/general entity và giới hạn expansion cụ thể.
+- **Actor:** client local chưa đăng nhập hoặc user fixture, chỉ gửi tài liệu XML giảm độ sâu trong container giới hạn tài nguyên.
+- **Điều kiện cần:** parser cho phép entity expansion và thiếu/không đủ giới hạn về body, số entity, độ sâu hoặc thời gian xử lý.
+- **Điều kiện môi trường:** Python 3.12; ghi lại `pyexpat.EXPAT_VERSION` hoặc phiên bản libxml thực tế; container không outbound và có CPU/memory timeout.
+
+Billion Laughs dùng entity nội bộ nên chặn outbound không ngăn được nó; bản sửa phải tắt DTD/entity khi không cần hoặc áp giới hạn parser có thể kiểm chứng. [S1]
+
+## 6. Cơ chế tấn công
+
+General entity tham chiếu lồng nhau có thể làm output tăng nhanh hơn input, khiến parser tiêu thụ CPU/memory trước khi ứng dụng xử lý DOM. Kiểm thử dùng biến thể giảm độ sâu, so peak resource/elapsed time với XML bình thường và xác nhận cấu hình an toàn từ chối trước expansion. [S1]
+
+## 7. Kiểm thử trong lab được ủy quyền
+
+1. **Setup:** chạy parser fixture trong container capped; ghi Python/parser version, cấu hình DTD/entity và baseline resource metrics.
+2. **Input:** dùng XML nhỏ hợp lệ, XML có DTD bị cấm và bomb giảm độ sâu với kích thước/expansion tối đa được định trước.
+3. **Thao tác:** tăng một cấp entity mỗi lượt; ghi elapsed time, peak RSS, exit/status và parser exception.
+4. **Expected result:** cấu hình dễ lỗi cho thấy expansion tăng rõ; cấu hình an toàn từ chối DTD/entity hoặc dừng tại hard limit mà worker vẫn khả dụng.
+5. **Cleanup:** dừng fixture, xóa XML/log tạm và xác nhận container không còn process.
+6. **Giới hạn an toàn:** không chạy full Billion Laughs; dừng trước resource cap, không dùng external entity hay callback Internet.
+
+## 8. Payload và phạm vi áp dụng
+
+Các block dưới đây được giữ để technical review. `static-verified` chỉ xác nhận cấu trúc/annotation đã qua gate tĩnh; nó **không** chứng minh payload hoạt động trên mọi phiên bản. Trước khi chạy phải đối chiếu `context`, điều kiện cần, encoding, expected result và risk. Payload mở rộng thuộc `cheatsheets/`; lesson chỉ giữ ví dụ cốt lõi.
+
+Lesson chỉ giữ seed ba cấp có giới hạn để kiểm tra policy mà không gây cạn kiệt tài nguyên. Payload đầy đủ kiểu Billion Laughs không được phát hành trong bài.
+
+<!-- payload-id: WEB-A10-XML-BOMBS-001 -->
+<!-- context: XML 1.0 với internal DTD; parser fixture phải ghi rõ implementation và phiên bản Expat/libxml -->
+<!-- prerequisites: container local có timeout, memory/CPU cap và không có outbound network -->
+<!-- encoding: UTF-8; document hoàn chỉnh, không nén -->
+<!-- expected-result: parser hardened từ chối DTD/entity expansion; fixture quan sát mở rộng tối đa 100 chuỗi lol rồi dừng, không tăng cấp -->
+<!-- risk: dos -->
+<!-- runnable: false -->
+<!-- validation: static-verified -->
+<!-- sources: S2,S4 -->
+<!-- last-verified: 2026-07-17 -->
+```xml
+<?xml version="1.0"?>
+<!DOCTYPE probe [
+  <!ENTITY e0 "lol">
+  <!ENTITY e1 "&e0;&e0;&e0;&e0;&e0;&e0;&e0;&e0;&e0;&e0;">
+  <!ENTITY e2 "&e1;&e1;&e1;&e1;&e1;&e1;&e1;&e1;&e1;&e1;">
+]>
+<probe>&e2;</probe>
+```
+
+## 9. Code dễ bị lỗi và code an toàn
+
+Hai hàm sau dùng Python 3.12 và `defusedxml` 0.7.1 cho cùng use case parse tài liệu XML nhỏ. Bản dễ lỗi tắt các cờ bảo vệ và không giới hạn input; bản an toàn giới hạn bytes trước parse rồi cấm DTD, entity và external reference. Vẫn cần timeout/memory cap ở tầng service cho defense-in-depth. [S4] [S5]
+
+### Không an toàn (vulnerable): tắt bảo vệ của parser
+
+```python
+from defusedxml import ElementTree as DefusedET
+
+def parse_xml_vulnerable(xml_text):
+    # Vulnerable: all defusedxml protections are explicitly disabled
+    return DefusedET.fromstring(
+        xml_text,
+        forbid_dtd=False,
+        forbid_entities=False,
+        forbid_external=False,
+    )
+```
+
+### An toàn (secure): giới hạn input và cấm cấu trúc không cần thiết
+
+```python
+from defusedxml import ElementTree as DefusedET
+from defusedxml.common import DefusedXmlException
+from xml.etree.ElementTree import ParseError
+
+MAX_XML_BYTES = 64 * 1024
+
+def parse_xml_secure(xml_text):
+    raw = xml_text.encode('utf-8')
+    if len(raw) > MAX_XML_BYTES:
+        raise ValueError('XML document exceeds the configured byte limit')
+    try:
+        return DefusedET.fromstring(
+            xml_text,
+            forbid_dtd=True,
+            forbid_entities=True,
+            forbid_external=True,
+        )
+    except (DefusedXmlException, ParseError) as exc:
+        raise ValueError("Rejected unsafe XML") from exc
+```
+
+## 10. Phát hiện
+
+- Ghi log actor/session, route hoặc operation, object/resource, kết quả policy và correlation ID; không ghi secret hoặc toàn bộ token.
+- So sánh authorization/validation failure với baseline hợp lệ và cảnh báo theo chuỗi hành vi, không chỉ theo một chuỗi payload.
+- Kết hợp telemetry ứng dụng, reverse proxy và datastore để xác nhận request đã tới sink và có/không có tác động.
+- Scanner hoặc WAF alert chỉ là tín hiệu điều tra; không phải bằng chứng duy nhất rằng lỗ hổng tồn tại. [S1]
+
+## 11. Phòng thủ
+
+### Kiểm soát bắt buộc
+
+- Giới hạn tài nguyên, fail safely và xử lý mọi trạng thái ngoại lệ có thể đạt tới.
+- Tắt DTD/general entity khi không cần; pin parser đã vá và đặt hard limit cho body, expansion, depth, CPU/memory và thời gian xử lý.
+- Dùng cùng một policy cho mọi route/operation tương đương; không chỉ sửa endpoint xuất hiện trong PoC.
+
+### Defense-in-depth
+
+Các biện pháp dưới đây hỗ trợ giảm blast radius hoặc tăng khả năng phát hiện. Rate limit, UUID khó đoán, WAF, CSP hoặc validation chung không được dùng để thay thế kiểm soát gốc.
+
 - **Tóm tắt**: Phòng chống XML Bomb bằng cách vô hiệu hóa hoàn toàn DTD nội tuyến hoặc giới hạn số lượng mở rộng thực thể tối đa trong cấu hình parser XML.
 - **Các bước chi tiết**:
   - Vô hiệu hóa hoàn toàn việc xử lý DTD nội tuyến (Document Type Definitions) trong bộ phân tích cú pháp XML.
   - Vô hiệu hóa tính năng phân giải thực thể XML bên ngoài (XXE).
   - Nếu DTD là bắt buộc đối với nghiệp vụ, hãy thiết lập giới hạn chặt chẽ về số lượng thực thể tối đa được phép mở rộng, kích thước tối đa của thuộc tính và kích thước tổng thể của tệp đầu vào.
-  - Chuyển sang sử dụng các định dạng dữ liệu an toàn hơn như JSON thay thế cho XML khi có thể.
+  - Nếu nghiệp vụ không cần DTD/XML, dùng định dạng đơn giản hơn có thể loại bỏ vector entity expansion; mọi định dạng vẫn cần giới hạn kích thước, độ sâu và thời gian xử lý.
 
-## Code Example
-```python
-# Secure XML parsing in Python using 'defusedxml' library
-import defusedxml.ElementTree as ET
+## 12. Retest
 
-xml_data = """<?xml version="1.0"?>
-<!DOCTYPE lolz [
- <!ENTITY lol "lol">
- <!ENTITY lol2 "&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;">
- <!ENTITY lol3 "&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;">
-]>
-<lolz>&lol3;</lolz>"""
+- **Positive case:** luồng hợp lệ vẫn hoạt động đúng cho actor và dữ liệu được phép.
+- **Negative case:** cùng input/tài nguyên nhưng actor hoặc context không được phép bị từ chối mà không rò rỉ chi tiết nhạy cảm.
+- **Boundary case:** kiểm tra giá trị rỗng, cực biên, encoding khác, request lặp, trạng thái phiên hết hạn và đường dẫn/operation tương đương.
+- **Telemetry:** xác nhận policy decision, application log, proxy log và datastore side effect khớp correlation ID.
+- **Regression:** lưu testcase tối thiểu tái hiện lỗi cũ và testcase chứng minh bản sửa không phụ thuộc WAF/rate limit.
 
-try:
-    # defusedxml blocks entity expansion and external entities automatically
-    root = ET.fromstring(xml_data)
-except Exception as e:
-    print(f"Safe parser blocked XML bomb: {e}")
-```
+## 13. Sai lầm thường gặp
 
-```python
-# VULNERABLE: parsing XML without entity expansion limit
-import xml.etree.ElementTree as ET  # stdlib is NOT safe for untrusted XML
+- Chỉ kiểm tra status code hoặc chuỗi phản hồi mà không xác nhận side effect và log.
+- Dùng payload đúng cú pháp nhưng sai DBMS, browser, framework, protocol hoặc injection context.
+- Coi UUID, rate limit, WAF, CSP hoặc input validation chung là bản sửa cho một kiểm soát gốc khác.
+- Chỉ sửa một route trong khi cùng sink/policy được dùng ở route khác.
+- Đánh dấu `verified` dù nguồn, phiên bản fixture hoặc evidence payload chưa được lưu.
 
-def parse_xml_vulnerable(xml_string):
-    # ElementTree does NOT protect against entity expansion attacks
-    tree = ET.fromstring(xml_string)  # Billion Laughs will consume all RAM
-    return tree
+## 14. Tóm tắt và checklist
 
-# SAFE: use defusedxml which blocks entity expansion
-import defusedxml.ElementTree as SafeET
+- [ ] Root cause, hậu quả và kỹ thuật khai thác đã được tách riêng.
+- [ ] Actor, role/authentication, trust boundary, công nghệ và phiên bản đã rõ.
+- [ ] Payload có ID duy nhất, context, encoding, điều kiện, expected result, risk, validation và source.
+- [ ] Code dễ lỗi/an toàn dùng cùng framework, phiên bản và use case.
+- [ ] Kiểm soát bắt buộc không bị thay thế bằng defense-in-depth.
+- [ ] Positive, negative, boundary case và telemetry đã qua retest.
+- [ ] Claim nhạy cảm có source marker và mọi link chỉ nằm ở mục 16–17.
+- [ ] Cleanup hoàn tất; không còn secret, target thật, callback Internet hoặc dữ liệu khách hàng.
 
-def parse_xml_safe(xml_string):
-    # defusedxml raises DefusedXmlException on XML bomb attempt
-    tree = SafeET.fromstring(xml_string)
-    return tree
-```
+## 15. Giải thích thuật ngữ
 
-## Xem thêm
-- [XML External Entities](../../05-injection/xxe/) — Lỗ hổng chèn thực thể XML bên ngoài cho phép đọc file hệ thống hoặc thực hiện SSRF thay vì gây cạn kiệt tài nguyên máy chủ.
-
-## Nguồn tham khảo
-- **Nguồn tham khảo**: OWASP XML Cheat Sheet, CWE-776, CWE-400
-
-## Giải thích thuật ngữ
 - **XML Entity (Thực thể XML)**: Hoạt động như một biến hoặc một lối tắt thay thế cho đoạn văn bản dài hơn trong tài liệu XML.
 - **DTD (Document Type Definition)**: Định nghĩa kiểu tài liệu, dùng để quy định cấu trúc ngữ pháp và các thực thể hợp lệ được sử dụng trong tệp XML.
 - **XML Parser**: Bộ phân tích cú pháp XML, chịu trách nhiệm đọc và biên dịch tệp XML thành cấu trúc dữ liệu mà ứng dụng hiểu được.
@@ -116,3 +248,15 @@ def parse_xml_safe(xml_string):
 - **Out of Memory (OOM)**: Lỗi cạn kiệt bộ nhớ RAM của hệ thống, khiến ứng dụng hoặc máy chủ bị tắt đột ngột do không thể cấp phát thêm bộ nhớ.
 - **Billion Laughs (Một tỷ tiếng cười)**: Tên gọi phổ biến của cuộc tấn công XML Bomb, xuất phát từ việc lặp lại đệ quy thực thể mang giá trị "lol" (viết tắt của cười lớn) lên đến một tỷ lần.
 - **Defusedxml**: Thư viện Python an toàn dùng để thay thế bộ parser XML mặc định, tự động chặn đứng các cuộc tấn công XML Bomb và chèn thực thể bên ngoài.
+
+## 16. Bài liên quan và đọc thêm
+
+- [XML External Entities](../../05-injection/xxe/) — Lỗ hổng chèn thực thể XML bên ngoài cho phép đọc file hệ thống hoặc thực hiện SSRF thay vì gây cạn kiệt tài nguyên máy chủ.
+
+## 17. Tài liệu tham khảo
+
+- **[S1]** OWASP Top 10:2025. https://owasp.org/Top10/2025/ — phiên bản/trạng thái: bản hiện hành; truy cập: 2026-07-18.
+- **[S2]** CWE-776. https://cwe.mitre.org/data/definitions/776.html — phiên bản/trạng thái: bản hiện hành; truy cập: 2026-07-18.
+- **[S3]** CWE-400. https://cwe.mitre.org/data/definitions/400.html — phiên bản/trạng thái: bản hiện hành; truy cập: 2026-07-18.
+- **[S4]** Python XML Processing Modules — XML vulnerabilities. https://docs.python.org/3/library/xml.html#xml-vulnerabilities — phiên bản/trạng thái: Python 3.x; truy cập: 2026-07-18.
+- **[S5]** defusedxml documentation. https://github.com/tiran/defusedxml — phiên bản/trạng thái: 0.7.1; truy cập: 2026-07-18.

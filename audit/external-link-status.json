@@ -1,0 +1,1374 @@
+{
+  "checked_at": "2026-07-18T17:52:08.946965+00:00",
+  "count": 228,
+  "results": [
+    {
+      "url": "https://auth0.com/blog/critical-vulnerabilities-in-json-web-token-libraries/",
+      "status": 200,
+      "final_url": "https://auth0.com/blog/critical-vulnerabilities-in-json-web-token-libraries/",
+      "ok": true
+    },
+    {
+      "url": "https://bind9.readthedocs.io/en/v9.18.38/dnssec-guide.html",
+      "status": 200,
+      "final_url": "https://bind9.readthedocs.io/en/v9.18.38/dnssec-guide.html",
+      "ok": true
+    },
+    {
+      "url": "https://book.hacktricks.wiki/en/network-services-pentesting/pentesting-web/graphql.html",
+      "status": 200,
+      "final_url": "https://hacktricks.wiki/en/network-services-pentesting/pentesting-web/graphql.html",
+      "ok": true
+    },
+    {
+      "url": "https://book.hacktricks.wiki/en/pentesting-web/content-security-policy-csp-bypass/index.html",
+      "status": 200,
+      "final_url": "https://hacktricks.wiki/en/pentesting-web/content-security-policy-csp-bypass/index.html",
+      "ok": true
+    },
+    {
+      "url": "https://book.hacktricks.wiki/en/pentesting-web/domain-subdomain-takeover.html",
+      "status": 200,
+      "final_url": "https://hacktricks.wiki/en/pentesting-web/domain-subdomain-takeover.html",
+      "ok": true
+    },
+    {
+      "url": "https://book.hacktricks.wiki/en/pentesting-web/ldap-injection.html",
+      "status": 200,
+      "final_url": "https://hacktricks.wiki/en/pentesting-web/ldap-injection.html",
+      "ok": true
+    },
+    {
+      "url": "https://book.hacktricks.wiki/en/pentesting-web/nosql-injection.html",
+      "status": 200,
+      "final_url": "https://hacktricks.wiki/en/pentesting-web/nosql-injection.html",
+      "ok": true
+    },
+    {
+      "url": "https://book.hacktricks.wiki/en/pentesting-web/ssti-server-side-template-injection/index.html",
+      "status": 200,
+      "final_url": "https://hacktricks.wiki/en/pentesting-web/ssti-server-side-template-injection/index.html",
+      "ok": true
+    },
+    {
+      "url": "https://cheatsheetseries.owasp.org/cheatsheets/Access_Control_Cheat_Sheet.html",
+      "status": 200,
+      "final_url": "https://cheatsheetseries.owasp.org/cheatsheets/Access_Control_Cheat_Sheet.html",
+      "ok": true
+    },
+    {
+      "url": "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html",
+      "status": 200,
+      "final_url": "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html",
+      "ok": true
+    },
+    {
+      "url": "https://cheatsheetseries.owasp.org/cheatsheets/Clickjacking_Defense_Cheat_Sheet.html",
+      "status": 200,
+      "final_url": "https://cheatsheetseries.owasp.org/cheatsheets/Clickjacking_Defense_Cheat_Sheet.html",
+      "ok": true
+    },
+    {
+      "url": "https://cheatsheetseries.owasp.org/cheatsheets/Content_Security_Policy_Cheat_Sheet.html",
+      "status": 200,
+      "final_url": "https://cheatsheetseries.owasp.org/cheatsheets/Content_Security_Policy_Cheat_Sheet.html",
+      "ok": true
+    },
+    {
+      "url": "https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html",
+      "status": 200,
+      "final_url": "https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html",
+      "ok": true
+    },
+    {
+      "url": "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html",
+      "status": 200,
+      "final_url": "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html",
+      "ok": true
+    },
+    {
+      "url": "https://cheatsheetseries.owasp.org/cheatsheets/DOM_Clobbering_Prevention_Cheat_Sheet.html",
+      "status": 200,
+      "final_url": "https://cheatsheetseries.owasp.org/cheatsheets/DOM_Clobbering_Prevention_Cheat_Sheet.html",
+      "ok": true
+    },
+    {
+      "url": "https://cheatsheetseries.owasp.org/cheatsheets/DOM_based_XSS_Prevention_Cheat_Sheet.html",
+      "status": 200,
+      "final_url": "https://cheatsheetseries.owasp.org/cheatsheets/DOM_based_XSS_Prevention_Cheat_Sheet.html",
+      "ok": true
+    },
+    {
+      "url": "https://cheatsheetseries.owasp.org/cheatsheets/Deserialization_Cheat_Sheet.html",
+      "status": 200,
+      "final_url": "https://cheatsheetseries.owasp.org/cheatsheets/Deserialization_Cheat_Sheet.html",
+      "ok": true
+    },
+    {
+      "url": "https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html",
+      "status": 200,
+      "final_url": "https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html",
+      "ok": true
+    },
+    {
+      "url": "https://cheatsheetseries.owasp.org/cheatsheets/GraphQL_Cheat_Sheet.html",
+      "status": 200,
+      "final_url": "https://cheatsheetseries.owasp.org/cheatsheets/GraphQL_Cheat_Sheet.html",
+      "ok": true
+    },
+    {
+      "url": "https://cheatsheetseries.owasp.org/cheatsheets/HTML5_Security_Cheat_Sheet.html#web-messaging",
+      "status": 200,
+      "final_url": "https://cheatsheetseries.owasp.org/cheatsheets/HTML5_Security_Cheat_Sheet.html#web-messaging",
+      "ok": true
+    },
+    {
+      "url": "https://cheatsheetseries.owasp.org/cheatsheets/OS_Command_Injection_Defense_Cheat_Sheet.html",
+      "status": 200,
+      "final_url": "https://cheatsheetseries.owasp.org/cheatsheets/OS_Command_Injection_Defense_Cheat_Sheet.html",
+      "ok": true
+    },
+    {
+      "url": "https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html",
+      "status": 200,
+      "final_url": "https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html",
+      "ok": true
+    },
+    {
+      "url": "https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html",
+      "status": 200,
+      "final_url": "https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html",
+      "ok": true
+    },
+    {
+      "url": "https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html",
+      "status": 200,
+      "final_url": "https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html",
+      "ok": true
+    },
+    {
+      "url": "https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html",
+      "status": 200,
+      "final_url": "https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html",
+      "ok": true
+    },
+    {
+      "url": "https://cheatsheetseries.owasp.org/cheatsheets/Unvalidated_Redirects_and_Forwards_Cheat_Sheet.html",
+      "status": 200,
+      "final_url": "https://cheatsheetseries.owasp.org/cheatsheets/Unvalidated_Redirects_and_Forwards_Cheat_Sheet.html",
+      "ok": true
+    },
+    {
+      "url": "https://cheatsheetseries.owasp.org/cheatsheets/XML_External_Entity_Prevention_Cheat_Sheet.html",
+      "status": 200,
+      "final_url": "https://cheatsheetseries.owasp.org/cheatsheets/XML_External_Entity_Prevention_Cheat_Sheet.html",
+      "ok": true
+    },
+    {
+      "url": "https://csp-evaluator.withgoogle.com/",
+      "status": 200,
+      "final_url": "https://csp-evaluator.withgoogle.com/",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/1021.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/1021.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/1059.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/1059.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/116.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/116.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/120.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/120.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/1236.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/1236.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/1321.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/1321.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/1333.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/1333.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/1336.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/1336.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/134.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/134.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/1385.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/1385.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/1395.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/1395.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/16.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/16.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/190.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/190.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/20.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/20.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/200.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/200.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/204.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/204.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/22.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/22.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/235.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/235.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/269.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/269.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/284.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/284.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/285.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/285.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/287.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/287.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/307.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/307.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/308.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/308.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/319.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/319.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/327.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/327.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/330.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/330.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/331.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/331.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/345.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/345.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/347.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/347.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/349.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/349.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/352.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/352.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/362.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/362.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/367.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/367.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/384.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/384.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/400.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/400.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/416.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/416.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/434.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/434.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/444.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/444.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/502.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/502.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/524.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/524.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/527.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/527.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/538.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/538.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/601.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/601.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/602.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/602.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/611.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/611.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/639.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/639.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/643.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/643.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/644.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/644.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/693.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/693.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/755.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/755.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/770.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/770.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/776.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/776.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/778.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/778.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/78.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/78.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/79.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/79.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/829.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/829.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/840.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/840.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/862.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/862.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/89.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/89.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/90.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/90.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/915.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/915.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/916.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/916.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/918.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/918.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/93.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/93.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/94.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/94.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/942.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/942.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/943.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/943.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/97.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/97.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/definitions/98.html",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/definitions/98.html",
+      "ok": true
+    },
+    {
+      "url": "https://cwe.mitre.org/data/xml/cwec_latest.xml.zip",
+      "status": 200,
+      "final_url": "https://cwe.mitre.org/data/xml/cwec_latest.xml.zip",
+      "ok": true
+    },
+    {
+      "url": "https://datatracker.ietf.org/doc/draft-ietf-httpapi-ratelimit-headers/",
+      "status": 200,
+      "final_url": "https://datatracker.ietf.org/doc/draft-ietf-httpapi-ratelimit-headers/",
+      "ok": true
+    },
+    {
+      "url": "https://datatracker.ietf.org/doc/html/rfc4515",
+      "status": 200,
+      "final_url": "https://datatracker.ietf.org/doc/html/rfc4515",
+      "ok": true
+    },
+    {
+      "url": "https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage",
+      "status": 200,
+      "final_url": "https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage",
+      "ok": true
+    },
+    {
+      "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Set-Cookie",
+      "status": 200,
+      "final_url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Set-Cookie",
+      "ok": true
+    },
+    {
+      "url": "https://docs.npmjs.com/cli/v10/commands/npm-ci/",
+      "status": 200,
+      "final_url": "https://docs.npmjs.com/cli/v10/commands/npm-ci/",
+      "ok": true
+    },
+    {
+      "url": "https://docs.npmjs.com/cli/v10/configuring-npm/package-lock-json/",
+      "status": 200,
+      "final_url": "https://docs.npmjs.com/cli/v10/configuring-npm/package-lock-json/",
+      "ok": true
+    },
+    {
+      "url": "https://docs.pwntools.com/en/stable/util/cyclic.html",
+      "status": 200,
+      "final_url": "https://docs.pwntools.com/en/stable/util/cyclic.html",
+      "ok": true
+    },
+    {
+      "url": "https://docs.python.org/3.12/library/random.html",
+      "status": 200,
+      "final_url": "https://docs.python.org/3.12/library/random.html",
+      "ok": true
+    },
+    {
+      "url": "https://docs.python.org/3/library/pickle.html",
+      "status": 200,
+      "final_url": "https://docs.python.org/3/library/pickle.html",
+      "ok": true
+    },
+    {
+      "url": "https://docs.python.org/3/library/xml.html#xml-vulnerabilities",
+      "status": 200,
+      "final_url": "https://docs.python.org/3/library/xml.html#xml-vulnerabilities",
+      "ok": true
+    },
+    {
+      "url": "https://docs.python.org/3/reference/datamodel.html",
+      "status": 200,
+      "final_url": "https://docs.python.org/3/reference/datamodel.html",
+      "ok": true
+    },
+    {
+      "url": "https://fetch.spec.whatwg.org/",
+      "status": 200,
+      "final_url": "https://fetch.spec.whatwg.org/",
+      "ok": true
+    },
+    {
+      "url": "https://flask-session.readthedocs.io/en/latest/api.html",
+      "status": 200,
+      "final_url": "https://flask-session.readthedocs.io/en/latest/api.html",
+      "ok": true
+    },
+    {
+      "url": "https://github.com/EdOverflow/can-i-take-over-xyz",
+      "status": 200,
+      "final_url": "https://github.com/EdOverflow/can-i-take-over-xyz",
+      "ok": true
+    },
+    {
+      "url": "https://github.com/OWASP/Top10",
+      "status": 200,
+      "final_url": "https://github.com/OWASP/Top10",
+      "ok": true
+    },
+    {
+      "url": "https://github.com/frohoff/ysoserial",
+      "status": 200,
+      "final_url": "https://github.com/frohoff/ysoserial",
+      "ok": true
+    },
+    {
+      "url": "https://github.com/swisskyrepo/PayloadsAllTheThings",
+      "status": 200,
+      "final_url": "https://github.com/swisskyrepo/PayloadsAllTheThings",
+      "ok": true
+    },
+    {
+      "url": "https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/Server%20Side%20Template%20Injection",
+      "status": 200,
+      "final_url": "https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/Server%20Side%20Template%20Injection",
+      "ok": true
+    },
+    {
+      "url": "https://hacktricks.wiki/",
+      "status": 200,
+      "final_url": "https://hacktricks.wiki/en/index.html",
+      "ok": true
+    },
+    {
+      "url": "https://hstspreload.org/",
+      "status": 200,
+      "final_url": "https://hstspreload.org/",
+      "ok": true
+    },
+    {
+      "url": "https://html.spec.whatwg.org/multipage/nav-history-apis.html#named-access-on-the-window-object",
+      "status": 200,
+      "final_url": "https://html.spec.whatwg.org/multipage/nav-history-apis.html#named-access-on-the-window-object",
+      "ok": true
+    },
+    {
+      "url": "https://httpd.apache.org/docs/2.4/howto/ssi.html",
+      "status": 200,
+      "final_url": "https://httpd.apache.org/docs/2.4/howto/ssi.html",
+      "ok": true
+    },
+    {
+      "url": "https://jinja.palletsprojects.com/en/stable/templates/",
+      "status": 200,
+      "final_url": "https://jinja.palletsprojects.com/en/stable/templates/",
+      "ok": true
+    },
+    {
+      "url": "https://learn.microsoft.com/en-us/azure/security/fundamentals/subdomain-takeover",
+      "status": 200,
+      "final_url": "https://learn.microsoft.com/en-us/azure/security/fundamentals/subdomain-takeover",
+      "ok": true
+    },
+    {
+      "url": "https://nginx.org/en/docs/http/ngx_http_ssl_module.html",
+      "status": 200,
+      "final_url": "https://nginx.org/en/docs/http/ngx_http_ssl_module.html",
+      "ok": true
+    },
+    {
+      "url": "https://nodejs.org/api/crypto.html",
+      "status": 200,
+      "final_url": "https://nodejs.org/api/crypto.html",
+      "ok": true
+    },
+    {
+      "url": "https://nvd.nist.gov/vuln/detail/CVE-2019-10744",
+      "status": 200,
+      "final_url": "https://nvd.nist.gov/vuln/detail/CVE-2019-10744",
+      "ok": true
+    },
+    {
+      "url": "https://omergil.blogspot.com/2017/02/web-cache-deception-attack.html",
+      "status": 200,
+      "final_url": "https://omergil.blogspot.com/2017/02/web-cache-deception-attack.html",
+      "ok": true
+    },
+    {
+      "url": "https://owasp.org/API-Security/editions/2023/en/0x11-t10/",
+      "status": 200,
+      "final_url": "https://owasp.org/API-Security/editions/2023/en/0x11-t10/",
+      "ok": true
+    },
+    {
+      "url": "https://owasp.org/API-Security/editions/2023/en/0xa1-broken-object-level-authorization/",
+      "status": 200,
+      "final_url": "https://owasp.org/API-Security/editions/2023/en/0xa1-broken-object-level-authorization/",
+      "ok": true
+    },
+    {
+      "url": "https://owasp.org/API-Security/editions/2023/en/0xa4-unrestricted-resource-consumption/",
+      "status": 200,
+      "final_url": "https://owasp.org/API-Security/editions/2023/en/0xa4-unrestricted-resource-consumption/",
+      "ok": true
+    },
+    {
+      "url": "https://owasp.org/API-Security/editions/2023/en/0xa5-broken-function-level-authorization/",
+      "status": 200,
+      "final_url": "https://owasp.org/API-Security/editions/2023/en/0xa5-broken-function-level-authorization/",
+      "ok": true
+    },
+    {
+      "url": "https://owasp.org/API-Security/editions/2023/en/0xa8-security-misconfiguration/",
+      "status": 200,
+      "final_url": "https://owasp.org/API-Security/editions/2023/en/0xa8-security-misconfiguration/",
+      "ok": true
+    },
+    {
+      "url": "https://owasp.org/API-Security/editions/2023/en/0xa9-improper-inventory-management/",
+      "status": 200,
+      "final_url": "https://owasp.org/API-Security/editions/2023/en/0xa9-improper-inventory-management/",
+      "ok": true
+    },
+    {
+      "url": "https://owasp.org/Top10/2025/",
+      "status": 200,
+      "final_url": "https://owasp.org/Top10/2025/",
+      "ok": true
+    },
+    {
+      "url": "https://owasp.org/Top10/A06_2021-Vulnerable_and_Outdated_Components/",
+      "status": 200,
+      "final_url": "https://owasp.org/Top10/A06_2021-Vulnerable_and_Outdated_Components/",
+      "ok": true
+    },
+    {
+      "url": "https://owasp.org/Top10/A08_2021-Software_and_Data_Integrity_Failures/",
+      "status": 200,
+      "final_url": "https://owasp.org/Top10/A08_2021-Software_and_Data_Integrity_Failures/",
+      "ok": true
+    },
+    {
+      "url": "https://owasp.org/www-community/Improper_Error_Handling",
+      "status": 200,
+      "final_url": "https://owasp.org/www-community/Improper_Error_Handling",
+      "ok": true
+    },
+    {
+      "url": "https://owasp.org/www-community/attacks/CSV_Injection",
+      "status": 200,
+      "final_url": "https://owasp.org/www-community/attacks/CSV_Injection",
+      "ok": true
+    },
+    {
+      "url": "https://owasp.org/www-community/attacks/Cache_Poisoning",
+      "status": 200,
+      "final_url": "https://owasp.org/www-community/attacks/Cache_Poisoning",
+      "ok": true
+    },
+    {
+      "url": "https://owasp.org/www-community/attacks/Code_Injection",
+      "status": 200,
+      "final_url": "https://owasp.org/www-community/attacks/Code_Injection",
+      "ok": true
+    },
+    {
+      "url": "https://owasp.org/www-community/attacks/Credential_stuffing",
+      "status": 200,
+      "final_url": "https://owasp.org/www-community/attacks/Credential_stuffing",
+      "ok": true
+    },
+    {
+      "url": "https://owasp.org/www-community/attacks/SQL_Injection",
+      "status": 200,
+      "final_url": "https://owasp.org/www-community/attacks/SQL_Injection",
+      "ok": true
+    },
+    {
+      "url": "https://owasp.org/www-community/attacks/Session_hijacking_attack",
+      "status": 200,
+      "final_url": "https://owasp.org/www-community/attacks/Session_hijacking_attack",
+      "ok": true
+    },
+    {
+      "url": "https://owasp.org/www-community/attacks/XPATH_Injection",
+      "status": 200,
+      "final_url": "https://owasp.org/www-community/attacks/XPATH_Injection",
+      "ok": true
+    },
+    {
+      "url": "https://owasp.org/www-community/attacks/xss/",
+      "status": 200,
+      "final_url": "https://owasp.org/www-community/attacks/xss/",
+      "ok": true
+    },
+    {
+      "url": "https://owasp.org/www-community/vulnerabilities/CRLF_Injection",
+      "status": 200,
+      "final_url": "https://owasp.org/www-community/vulnerabilities/CRLF_Injection",
+      "ok": true
+    },
+    {
+      "url": "https://owasp.org/www-community/vulnerabilities/Insecure_Randomness",
+      "status": 200,
+      "final_url": "https://owasp.org/www-community/vulnerabilities/Insecure_Randomness",
+      "ok": true
+    },
+    {
+      "url": "https://owasp.org/www-pdf-archive/AppsecEU09_CarssoniDiPaola_v0.8.pdf",
+      "status": 200,
+      "final_url": "https://github.com/login?return_to=https%3A%2F%2Fgithub.com%2Fpages%2Fauth%3Fnonce%3Dd99ab0af-b539-4279-a374-768fafea8268%26page_id%3D11299051%26path%3DL0FwcHNlY0VVMDlfQ2Fyc3NvbmlEaVBhb2xhX3YwLjgucGRm",
+      "ok": true
+    },
+    {
+      "url": "https://owasp.org/www-pdf-archive/OWASP_Top_10_2021_Draft_v1.1.pdf",
+      "status": 200,
+      "final_url": "https://github.com/login?return_to=https%3A%2F%2Fgithub.com%2Fpages%2Fauth%3Fnonce%3D6d9e88c3-c1de-4a74-932c-6eee21b5b3ed%26page_id%3D11299051%26path%3DL09XQVNQX1RvcF8xMF8yMDIxX0RyYWZ0X3YxLjEucGRm",
+      "ok": true
+    },
+    {
+      "url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/04-Authentication_Testing/11-Testing_Multi-Factor_Authentication",
+      "status": 200,
+      "final_url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/04-Authentication_Testing/11-Testing_Multi-Factor_Authentication",
+      "ok": true
+    },
+    {
+      "url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/05-Authorization_Testing/05-Testing_for_OAuth_Weaknesses",
+      "status": 200,
+      "final_url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/05-Authorization_Testing/05-Testing_for_OAuth_Weaknesses",
+      "ok": true
+    },
+    {
+      "url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/06-Session_Management_Testing/09-Testing_for_Session_Hijacking",
+      "status": 200,
+      "final_url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/06-Session_Management_Testing/09-Testing_for_Session_Hijacking",
+      "ok": true
+    },
+    {
+      "url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/04-Testing_for_HTTP_Parameter_Pollution",
+      "status": 200,
+      "final_url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/04-Testing_for_HTTP_Parameter_Pollution",
+      "ok": true
+    },
+    {
+      "url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/05.6-Testing_for_NoSQL_Injection",
+      "status": 200,
+      "final_url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/05.6-Testing_for_NoSQL_Injection",
+      "ok": true
+    },
+    {
+      "url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/06-Testing_for_LDAP_Injection",
+      "status": 200,
+      "final_url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/06-Testing_for_LDAP_Injection",
+      "ok": true
+    },
+    {
+      "url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/08-Testing_for_SSI_Injection",
+      "status": 200,
+      "final_url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/08-Testing_for_SSI_Injection",
+      "ok": true
+    },
+    {
+      "url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/09-Testing_for_XPath_Injection",
+      "status": 200,
+      "final_url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/09-Testing_for_XPath_Injection",
+      "ok": true
+    },
+    {
+      "url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/11.1-Testing_for_File_Inclusion",
+      "status": 200,
+      "final_url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/11.1-Testing_for_File_Inclusion",
+      "ok": true
+    },
+    {
+      "url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/12-Testing_for_Command_Injection",
+      "status": 200,
+      "final_url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/12-Testing_for_Command_Injection",
+      "ok": true
+    },
+    {
+      "url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/15-Testing_for_HTTP_Response_Splitting",
+      "status": 200,
+      "final_url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/15-Testing_for_HTTP_Response_Splitting",
+      "ok": true
+    },
+    {
+      "url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/16-Testing_for_HTTP_Request_Smuggling",
+      "status": 200,
+      "final_url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/16-Testing_for_HTTP_Request_Smuggling",
+      "ok": true
+    },
+    {
+      "url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/10-Business_Logic_Testing/",
+      "status": 200,
+      "final_url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/10-Business_Logic_Testing/",
+      "ok": true
+    },
+    {
+      "url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/11-Client-side_Testing/05-Testing_for_CSS_Injection",
+      "status": 200,
+      "final_url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/11-Client-side_Testing/05-Testing_for_CSS_Injection",
+      "ok": true
+    },
+    {
+      "url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/11-Client-side_Testing/07-Testing_Cross_Origin_Resource_Sharing",
+      "status": 200,
+      "final_url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/11-Client-side_Testing/07-Testing_Cross_Origin_Resource_Sharing",
+      "ok": true
+    },
+    {
+      "url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/11-Client-side_Testing/10-Testing_WebSockets",
+      "status": 200,
+      "final_url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/11-Client-side_Testing/10-Testing_WebSockets",
+      "ok": true
+    },
+    {
+      "url": "https://pages.nist.gov/800-63-4/sp800-63b.html",
+      "status": 200,
+      "final_url": "https://pages.nist.gov/800-63-4/sp800-63b.html",
+      "ok": true
+    },
+    {
+      "url": "https://portswigger.net/daily-swig/csv-injection",
+      "status": 200,
+      "final_url": "https://portswigger.net/",
+      "ok": true
+    },
+    {
+      "url": "https://portswigger.net/research/http-desync-attacks",
+      "status": 200,
+      "final_url": "https://portswigger.net/research/http-desync-attacks-request-smuggling-reborn",
+      "ok": true
+    },
+    {
+      "url": "https://portswigger.net/research/practical-web-cache-poisoning",
+      "status": 200,
+      "final_url": "https://portswigger.net/research/practical-web-cache-poisoning",
+      "ok": true
+    },
+    {
+      "url": "https://portswigger.net/web-security/access-control/idor",
+      "status": 200,
+      "final_url": "https://portswigger.net/web-security/access-control/idor",
+      "ok": true
+    },
+    {
+      "url": "https://portswigger.net/web-security/api-testing",
+      "status": 200,
+      "final_url": "https://portswigger.net/web-security/api-testing",
+      "ok": true
+    },
+    {
+      "url": "https://portswigger.net/web-security/authentication/multi-factor",
+      "status": 200,
+      "final_url": "https://portswigger.net/web-security/authentication/multi-factor",
+      "ok": true
+    },
+    {
+      "url": "https://portswigger.net/web-security/authentication/other-mechanisms",
+      "status": 200,
+      "final_url": "https://portswigger.net/web-security/authentication/other-mechanisms",
+      "ok": true
+    },
+    {
+      "url": "https://portswigger.net/web-security/authentication/password-based",
+      "status": 200,
+      "final_url": "https://portswigger.net/web-security/authentication/password-based",
+      "ok": true
+    },
+    {
+      "url": "https://portswigger.net/web-security/cross-site-scripting",
+      "status": 200,
+      "final_url": "https://portswigger.net/web-security/cross-site-scripting",
+      "ok": true
+    },
+    {
+      "url": "https://portswigger.net/web-security/cross-site-scripting/content-security-policy",
+      "status": 200,
+      "final_url": "https://portswigger.net/web-security/cross-site-scripting/content-security-policy",
+      "ok": true
+    },
+    {
+      "url": "https://portswigger.net/web-security/cross-site-scripting/stored",
+      "status": 200,
+      "final_url": "https://portswigger.net/web-security/cross-site-scripting/stored",
+      "ok": true
+    },
+    {
+      "url": "https://portswigger.net/web-security/deserialization",
+      "status": 200,
+      "final_url": "https://portswigger.net/web-security/deserialization",
+      "ok": true
+    },
+    {
+      "url": "https://portswigger.net/web-security/dom-based/controlling-the-web-message-source",
+      "status": 200,
+      "final_url": "https://portswigger.net/web-security/dom-based/controlling-the-web-message-source",
+      "ok": true
+    },
+    {
+      "url": "https://portswigger.net/web-security/dom-based/dom-clobbering",
+      "status": 200,
+      "final_url": "https://portswigger.net/web-security/dom-based/dom-clobbering",
+      "ok": true
+    },
+    {
+      "url": "https://portswigger.net/web-security/file-path-traversal",
+      "status": 200,
+      "final_url": "https://portswigger.net/web-security/file-path-traversal",
+      "ok": true
+    },
+    {
+      "url": "https://portswigger.net/web-security/graphql",
+      "status": 200,
+      "final_url": "https://portswigger.net/web-security/graphql",
+      "ok": true
+    },
+    {
+      "url": "https://portswigger.net/web-security/information-disclosure",
+      "status": 200,
+      "final_url": "https://portswigger.net/web-security/information-disclosure",
+      "ok": true
+    },
+    {
+      "url": "https://portswigger.net/web-security/jwt",
+      "status": 200,
+      "final_url": "https://portswigger.net/web-security/jwt",
+      "ok": true
+    },
+    {
+      "url": "https://portswigger.net/web-security/logic-flaws",
+      "status": 200,
+      "final_url": "https://portswigger.net/web-security/logic-flaws",
+      "ok": true
+    },
+    {
+      "url": "https://portswigger.net/web-security/nosql-injection",
+      "status": 200,
+      "final_url": "https://portswigger.net/web-security/nosql-injection",
+      "ok": true
+    },
+    {
+      "url": "https://portswigger.net/web-security/oauth",
+      "status": 200,
+      "final_url": "https://portswigger.net/web-security/oauth",
+      "ok": true
+    },
+    {
+      "url": "https://portswigger.net/web-security/os-command-injection",
+      "status": 200,
+      "final_url": "https://portswigger.net/web-security/os-command-injection",
+      "ok": true
+    },
+    {
+      "url": "https://portswigger.net/web-security/prototype-pollution",
+      "status": 200,
+      "final_url": "https://portswigger.net/web-security/prototype-pollution",
+      "ok": true
+    },
+    {
+      "url": "https://portswigger.net/web-security/race-conditions",
+      "status": 200,
+      "final_url": "https://portswigger.net/web-security/race-conditions",
+      "ok": true
+    },
+    {
+      "url": "https://portswigger.net/web-security/request-smuggling",
+      "status": 200,
+      "final_url": "https://portswigger.net/web-security/request-smuggling",
+      "ok": true
+    },
+    {
+      "url": "https://portswigger.net/web-security/server-side-template-injection",
+      "status": 200,
+      "final_url": "https://portswigger.net/web-security/server-side-template-injection",
+      "ok": true
+    },
+    {
+      "url": "https://portswigger.net/web-security/sql-injection",
+      "status": 200,
+      "final_url": "https://portswigger.net/web-security/sql-injection",
+      "ok": true
+    },
+    {
+      "url": "https://portswigger.net/web-security/sql-injection#second-order-sql-injection",
+      "status": 200,
+      "final_url": "https://portswigger.net/web-security/sql-injection#second-order-sql-injection",
+      "ok": true
+    },
+    {
+      "url": "https://portswigger.net/web-security/web-cache-deception",
+      "status": 200,
+      "final_url": "https://portswigger.net/web-security/web-cache-deception",
+      "ok": true
+    },
+    {
+      "url": "https://portswigger.net/web-security/web-cache-poisoning",
+      "status": 200,
+      "final_url": "https://portswigger.net/web-security/web-cache-poisoning",
+      "ok": true
+    },
+    {
+      "url": "https://portswigger.net/web-security/websockets/cross-site-websocket-hijacking",
+      "status": 200,
+      "final_url": "https://portswigger.net/web-security/websockets/cross-site-websocket-hijacking",
+      "ok": true
+    },
+    {
+      "url": "https://portswigger.net/web-security/xxe",
+      "status": 200,
+      "final_url": "https://portswigger.net/web-security/xxe",
+      "ok": true
+    },
+    {
+      "url": "https://pyjwt.readthedocs.io/en/stable/usage.html",
+      "status": 200,
+      "final_url": "https://pyjwt.readthedocs.io/en/stable/usage.html",
+      "ok": true
+    },
+    {
+      "url": "https://raw.githubusercontent.com/OWASP/Top10/839169cad15199176f462616b891a1588265cde8/2025/docs/en/A01_2025-Broken_Access_Control.md",
+      "status": 200,
+      "final_url": "https://raw.githubusercontent.com/OWASP/Top10/839169cad15199176f462616b891a1588265cde8/2025/docs/en/A01_2025-Broken_Access_Control.md",
+      "ok": true
+    },
+    {
+      "url": "https://raw.githubusercontent.com/OWASP/Top10/839169cad15199176f462616b891a1588265cde8/2025/docs/en/A02_2025-Security_Misconfiguration.md",
+      "status": 200,
+      "final_url": "https://raw.githubusercontent.com/OWASP/Top10/839169cad15199176f462616b891a1588265cde8/2025/docs/en/A02_2025-Security_Misconfiguration.md",
+      "ok": true
+    },
+    {
+      "url": "https://raw.githubusercontent.com/OWASP/Top10/839169cad15199176f462616b891a1588265cde8/2025/docs/en/A03_2025-Software_Supply_Chain_Failures.md",
+      "status": 200,
+      "final_url": "https://raw.githubusercontent.com/OWASP/Top10/839169cad15199176f462616b891a1588265cde8/2025/docs/en/A03_2025-Software_Supply_Chain_Failures.md",
+      "ok": true
+    },
+    {
+      "url": "https://raw.githubusercontent.com/OWASP/Top10/839169cad15199176f462616b891a1588265cde8/2025/docs/en/A04_2025-Cryptographic_Failures.md",
+      "status": 200,
+      "final_url": "https://raw.githubusercontent.com/OWASP/Top10/839169cad15199176f462616b891a1588265cde8/2025/docs/en/A04_2025-Cryptographic_Failures.md",
+      "ok": true
+    },
+    {
+      "url": "https://raw.githubusercontent.com/OWASP/Top10/839169cad15199176f462616b891a1588265cde8/2025/docs/en/A05_2025-Injection.md",
+      "status": 200,
+      "final_url": "https://raw.githubusercontent.com/OWASP/Top10/839169cad15199176f462616b891a1588265cde8/2025/docs/en/A05_2025-Injection.md",
+      "ok": true
+    },
+    {
+      "url": "https://raw.githubusercontent.com/OWASP/Top10/839169cad15199176f462616b891a1588265cde8/2025/docs/en/A06_2025-Insecure_Design.md",
+      "status": 200,
+      "final_url": "https://raw.githubusercontent.com/OWASP/Top10/839169cad15199176f462616b891a1588265cde8/2025/docs/en/A06_2025-Insecure_Design.md",
+      "ok": true
+    },
+    {
+      "url": "https://raw.githubusercontent.com/OWASP/Top10/839169cad15199176f462616b891a1588265cde8/2025/docs/en/A07_2025-Authentication_Failures.md",
+      "status": 200,
+      "final_url": "https://raw.githubusercontent.com/OWASP/Top10/839169cad15199176f462616b891a1588265cde8/2025/docs/en/A07_2025-Authentication_Failures.md",
+      "ok": true
+    },
+    {
+      "url": "https://raw.githubusercontent.com/OWASP/Top10/839169cad15199176f462616b891a1588265cde8/2025/docs/en/A08_2025-Software_or_Data_Integrity_Failures.md",
+      "status": 200,
+      "final_url": "https://raw.githubusercontent.com/OWASP/Top10/839169cad15199176f462616b891a1588265cde8/2025/docs/en/A08_2025-Software_or_Data_Integrity_Failures.md",
+      "ok": true
+    },
+    {
+      "url": "https://raw.githubusercontent.com/OWASP/Top10/839169cad15199176f462616b891a1588265cde8/2025/docs/en/A09_2025-Security_Logging_and_Alerting_Failures.md",
+      "status": 200,
+      "final_url": "https://raw.githubusercontent.com/OWASP/Top10/839169cad15199176f462616b891a1588265cde8/2025/docs/en/A09_2025-Security_Logging_and_Alerting_Failures.md",
+      "ok": true
+    },
+    {
+      "url": "https://raw.githubusercontent.com/OWASP/Top10/839169cad15199176f462616b891a1588265cde8/2025/docs/en/A10_2025-Mishandling_of_Exceptional_Conditions.md",
+      "status": 200,
+      "final_url": "https://raw.githubusercontent.com/OWASP/Top10/839169cad15199176f462616b891a1588265cde8/2025/docs/en/A10_2025-Mishandling_of_Exceptional_Conditions.md",
+      "ok": true
+    },
+    {
+      "url": "https://security.snyk.io/vuln/SNYK-JS-LODASH-450202",
+      "status": 200,
+      "final_url": "https://security.snyk.io/vuln/SNYK-JS-LODASH-450202",
+      "ok": true
+    },
+    {
+      "url": "https://six2dez.gitbook.io/pentest-book",
+      "status": 200,
+      "final_url": "https://www.pentest-book.com/",
+      "ok": true
+    },
+    {
+      "url": "https://slsa.dev/",
+      "status": 200,
+      "final_url": "https://slsa.dev/",
+      "ok": true
+    },
+    {
+      "url": "https://snyk.io/blog/detect-prevent-dependency-confusion-attacks-npm-supply-chain-security/",
+      "status": 200,
+      "final_url": "https://snyk.io/blog/detect-prevent-dependency-confusion-attacks-npm-supply-chain-security/",
+      "ok": true
+    },
+    {
+      "url": "https://swisskyrepo.github.io/PayloadsAllTheThings/",
+      "status": 200,
+      "final_url": "https://swisskyrepo.github.io/PayloadsAllTheThings/",
+      "ok": true
+    },
+    {
+      "url": "https://v8.dev/blog/math-random",
+      "status": 200,
+      "final_url": "https://v8.dev/blog/math-random",
+      "ok": true
+    },
+    {
+      "url": "https://www.christian-schneider.net/CrossSiteWebSocketHijacking.html",
+      "status": 200,
+      "final_url": "https://www.christian-schneider.net/blog/cross-site-websocket-hijacking/",
+      "ok": true
+    },
+    {
+      "url": "https://www.contextis.com/en/blog/comma-separated-vulnerabilities",
+      "status": 200,
+      "final_url": "https://www.accenture.com/sg-en",
+      "ok": true
+    },
+    {
+      "url": "https://www.rfc-editor.org/rfc/rfc3629.html",
+      "status": 200,
+      "final_url": "https://www.rfc-editor.org/rfc/rfc3629.html",
+      "ok": true
+    },
+    {
+      "url": "https://www.rfc-editor.org/rfc/rfc5452.html",
+      "status": 200,
+      "final_url": "https://www.rfc-editor.org/rfc/rfc5452.html",
+      "ok": true
+    },
+    {
+      "url": "https://www.rfc-editor.org/rfc/rfc6797.html",
+      "status": 200,
+      "final_url": "https://www.rfc-editor.org/rfc/rfc6797.html",
+      "ok": true
+    },
+    {
+      "url": "https://www.rfc-editor.org/rfc/rfc7489.html",
+      "status": 200,
+      "final_url": "https://www.rfc-editor.org/rfc/rfc7489.html",
+      "ok": true
+    },
+    {
+      "url": "https://www.rfc-editor.org/rfc/rfc8446.html",
+      "status": 200,
+      "final_url": "https://www.rfc-editor.org/rfc/rfc8446.html",
+      "ok": true
+    },
+    {
+      "url": "https://www.rfc-editor.org/rfc/rfc8725.html",
+      "status": 200,
+      "final_url": "https://www.rfc-editor.org/rfc/rfc8725.html",
+      "ok": true
+    },
+    {
+      "url": "https://www.rfc-editor.org/rfc/rfc8996.html",
+      "status": 200,
+      "final_url": "https://www.rfc-editor.org/rfc/rfc8996.html",
+      "ok": true
+    },
+    {
+      "url": "https://www.rfc-editor.org/rfc/rfc9111.html",
+      "status": 200,
+      "final_url": "https://www.rfc-editor.org/rfc/rfc9111.html",
+      "ok": true
+    },
+    {
+      "url": "https://www.rfc-editor.org/rfc/rfc9112.html",
+      "status": 200,
+      "final_url": "https://www.rfc-editor.org/rfc/rfc9112.html",
+      "ok": true
+    },
+    {
+      "url": "https://www.rfc-editor.org/rfc/rfc9562.html",
+      "status": 200,
+      "final_url": "https://www.rfc-editor.org/rfc/rfc9562.html",
+      "ok": true
+    },
+    {
+      "url": "https://www.w3.org/TR/SRI/",
+      "status": 200,
+      "final_url": "https://www.w3.org/TR/sri/",
+      "ok": true
+    }
+  ]
+}

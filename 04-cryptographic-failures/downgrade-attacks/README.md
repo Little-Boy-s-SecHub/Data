@@ -1,11 +1,49 @@
+---
+schema_version: 1
+id: WEB-A04-DOWNGRADE-ATTACKS
+title: "Downgrade Attacks"
+slug: downgrade-attacks
+level: intermediate
+estimated_minutes: 50
+prerequisites:
+  - http-fundamentals
+  - authorized-security-testing
+owasp:
+  - A04:2025
+cwe:
+  - CWE-327
+content_status: technical-review
+payload_status: none
+last_verified: null
+---
+
 # Downgrade Attacks
 
-> **CWE**: CWE-327 | **Phân loại**: Cryptographic Failures
+> [!CAUTION]
+> Chỉ thực hành trên hệ thống bạn sở hữu hoặc có ủy quyền rõ ràng. Dùng dữ liệu giả, fixture có thể hủy và giới hạn tài nguyên; không gửi payload đến Internet hoặc mục tiêu thật.
 
-## Kiến thức Nền tảng
-Để bảo vệ thông tin cá nhân của bạn khi di chuyển trên không gian mạng, các trình duyệt và máy chủ sử dụng một "đường ống bảo mật" gọi là giao thức TLS. Quá trình thiết lập đường ống này bắt đầu bằng một cuộc trò chuyện xã giao (gọi là **TLS handshake sequence**). Đầu tiên, trình duyệt của bạn sẽ gửi một lời chào (**Client Hello**) kèm theo danh sách những ngôn ngữ mã hóa mà nó biết nói (các cipher suites) và các phiên bản TLS nó hỗ trợ. Máy chủ sẽ lịch sự phản hồi lại bằng một lời chào từ máy chủ (**Server Hello**), chọn phiên bản TLS cao nhất và bộ mật mã an toàn nhất mà cả hai bên cùng hiểu để trò chuyện (gọi là thương lượng mật mã - **cipher negotiation**).
+## 1. Mục tiêu học tập
 
-Để quá trình này diễn ra an toàn và nhanh chóng, hệ thống kết hợp hai loại kỹ thuật: **mã hóa bất đối xứng (asymmetric encryption)** và **mã hóa đối xứng (symmetric encryption)**. Trong bước bắt tay đầu tiên, mã hóa bất đối xứng (sử dụng một cặp khóa công-tư) giống như một tấm thẻ chứng minh thư giúp xác thực danh tính của máy chủ và giúp hai bên trao đổi một "mật mã bí mật" một cách an toàn. Khi cuộc bắt tay hoàn tất và chiếc khóa bí mật đã được thống nhất, họ chuyển sang sử dụng mã hóa đối xứng (sử dụng chung một chiếc khóa bí mật này cho cả việc khóa và mở) để truyền tải toàn bộ dữ liệu thực tế. Cách làm này vừa giúp bảo mật dữ liệu tuyệt đối, vừa giúp hệ thống hoạt động cực kỳ nhanh chóng mà không làm chậm thiết bị của bạn.
+Sau bài học, bạn có thể:
+
+- Giải thích Downgrade Attacks bằng root cause thay vì chỉ mô tả hậu quả.
+- Nhận diện trust boundary, tài sản, actor và điều kiện cần để lỗi có thể bị khai thác.
+- Thực hiện kiểm thử có kiểm soát trong lab local và phân biệt expected result với false positive.
+- Chọn kiểm soát gốc, triển khai bản sửa và retest bằng positive, negative và boundary case.
+
+## 2. Kiến thức cần có
+
+- TLS handshake, supported versions và cipher suite.
+
+- Client/server minimum-version policy và fallback.
+
+- OpenSSL/Nginx fixture với certificate lab.
+
+## 3. Kiến thức nền tảng
+
+Để bảo vệ thông tin cá nhân của bạn khi di chuyển trên không gian mạng, các trình duyệt và máy chủ sử dụng một "đường ống bảo mật" gọi là giao thức TLS. Quá trình thiết lập đường ống này bắt đầu bằng một cuộc trò chuyện xã giao (gọi là **TLS handshake sequence**). Đầu tiên, trình duyệt của bạn sẽ gửi một lời chào (**Client Hello**) kèm theo danh sách những ngôn ngữ mã hóa mà nó biết nói (các cipher suites) và các phiên bản TLS nó hỗ trợ. Máy chủ sẽ lịch sự phản hồi lại bằng một lời chào từ máy chủ (**Server Hello**), chọn phiên bản TLS cao nhất và bộ mật mã an toàn nhất mà cả hai bên cùng hiểu để trò chuyện (gọi là thương lượng mật mã - **cipher negotiation**). [S3]
+
+Trong TLS hiện đại, chữ ký bất đối xứng xác thực transcript và ephemeral key agreement tạo shared secret; dữ liệu ứng dụng sau đó được bảo vệ bằng AEAD đối xứng. Các chi tiết này phụ thuộc phiên bản và cipher suite, nên không nên mô tả mọi TLS handshake như “dùng khóa công khai để mã hóa một khóa phiên”. [S3]
 
 ### Minh họa hoạt động bình thường (Normal Operation)
 ```python
@@ -13,20 +51,14 @@
 import socket
 import ssl
 
-hostname = 'www.example.com'
+hostname = 'www.victim.lab.test'
 port = 443
 
 # Create a secure SSL context enforcing strong cryptographic protocols
 # We restrict the communication to TLSv1.2 or TLSv1.3 only, disabling outdated versions
-context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+context = ssl.create_default_context(cafile="/lab/ca.pem")
 context.minimum_version = ssl.TLSVersion.TLSv1_2
 context.maximum_version = ssl.TLSVersion.TLSv1_3
-
-# Configure modern, strong cipher suites for secure cipher negotiation
-context.set_ciphers('ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256')
-
-# Load default CA certificates to verify the server's identity via asymmetric encryption
-context.load_default_certs()
 
 # Establish the connection under secure handshake parameters
 with socket.create_connection((hostname, port)) as sock:
@@ -34,69 +66,158 @@ with socket.create_connection((hostname, port)) as sock:
         # Secure TLS handshake occurs here under the hood
         print(f"Successfully negotiated protocol version: {ssock.version()}")
         print(f"Negotiated cipher suite: {ssock.cipher()[0]}")
-        
+
         # Safe communication using symmetric encryption begins
-        ssock.sendall(b"GET / HTTP/1.1\r\nHost: www.example.com\r\n\r\n")
+        ssock.sendall(b"GET / HTTP/1.1\r\nHost: www.victim.lab.test\r\n\r\n")
 ```
 
-## Mô tả lỗ hổng
-Lỗ hổng tấn công hạ cấp (Downgrade Attack) xảy ra khi có một kẻ xấu đứng ở giữa đường truyền (Man-in-the-Middle - MitM) can thiệp vào cuộc trò chuyện ban đầu của bạn. 
+## 4. Mô tả và nguyên nhân gốc
 
-Giống như một kẻ trung gian ác ý cố tình sửa bức thư chào hỏi của bạn, chúng xóa bỏ hết các ngôn ngữ bảo mật hiện đại (như TLS 1.3) và chỉ để lại các ngôn ngữ cũ kỹ, đầy lỗ hổng (như SSLv3 hay các thuật toán mã hóa lỗi thời). Máy chủ khi nhận được bức thư bị chỉnh sửa này sẽ nghĩ rằng trình duyệt của bạn quá cũ kỹ và đành phải chấp nhận sử dụng một ngôn ngữ bảo mật yếu ớt hơn để nói chuyện. 
+Downgrade attack xảy ra khi actor có vị trí MitM làm hai endpoint thực sự hỗ trợ cấu hình mạnh hơn lại hoàn tất kết nối bằng phiên bản hoặc primitive yếu hơn. Actor không thể chỉ sửa `ClientHello` của một TLS handshake hiện đại rồi giữ kết nối trong suốt: transcript/`Finished` và cơ chế downgrade sentinel của TLS 1.3 sẽ phát hiện nhiều dạng can thiệp. Kịch bản thực tế cần fallback không an toàn, negotiation ngoài kênh chưa được bảo vệ, legacy implementation hoặc lỗi giao thức cụ thể. [S3]
 
-Sự nguy hiểm nằm ở chỗ, một khi kết nối đã bị hạ cấp xuống phiên bản yếu, kẻ tấn công đứng ở giữa có thể dễ dàng bẻ gãy lớp mã hóa lỏng lẻo này, đọc trộm hoặc chỉnh sửa mọi thông tin nhạy cảm của bạn (như mật khẩu, tài khoản ngân hàng) mà không hề bị phát hiện.
+Tác động không tự động là “giải mã mọi lưu lượng”. Phải chứng minh primitive đã thương lượng có điểm yếu có thể khai thác trong đúng threat model. TLS 1.0 và 1.1 đã bị IETF deprecate; baseline hiện hành tối thiểu là TLS 1.2. [S4]
 
-## Cơ chế tấn công
-Kẻ tấn công chèn chính mình làm kẻ đứng giữa (MitM). Trong quá trình bắt tay TLS, chúng sửa đổi danh sách các thuật toán mã hóa được hỗ trợ của máy khách để chỉ hiển thị các tùy chọn đã lỗi thời (như SSLv3 hoặc RC4). Máy chủ đồng ý sử dụng tiêu chuẩn yếu hơn này, cho phép kẻ tấn công giải mã và nghe lén lưu lượng truy cập phiên làm việc.
 
-## Biện pháp phòng thủ
-- **Tóm tắt**: Cấu hình các máy chủ web để từ chối các phiên bản TLS yếu và các thuật toán mã hóa không an toàn, thực thi các giao thức hiện đại (TLS 1.2/1.3), và triển khai HSTS.
-- **Các bước chi tiết**:
-  - Cấu hình các máy chủ web để chỉ chấp nhận TLS 1.2 và TLS 1.3, vô hiệu hóa SSLv3, TLS 1.0 và TLS 1.1.
-  - Thực thi các bộ cipher mạnh mẽ, hiện đại (như AES-GCM và ChaCha20) và ưu tiên cấu hình lựa chọn của máy chủ.
-  - Triển khai HTTP Strict Transport Security (HSTS) với max-age dài và bao gồm các tên miền phụ (subdomains) để bắt buộc sử dụng HTTPS.
-  - Sử dụng Giá trị Bộ Cipher Tín hiệu Dự phòng TLS (TLS_FALLBACK_SCSV) để ngăn chặn các cuộc tấn công hạ cấp giao thức.
-  - Cấu hình cookie phiên làm việc với các cờ Secure và HttpOnly để đảm bảo các định danh phiên không bao giờ được gửi qua các kênh HTTP không được mã hóa.
+## 5. Mô hình đe dọa và điều kiện khai thác
 
-### Các tấn công downgrade nổi tiếng:
-- **POODLE** (Padding Oracle On Downgraded Legacy Encryption): Khai thác SSL 3.0 CBC mode padding oracle. Attacker ép client và server dùng SSL 3.0 để decrypt session.
-- **BEAST** (Browser Exploit Against SSL/TLS): Tấn công TLS 1.0 CBC IV predictability, dùng chosen-plaintext attack để decrypt.
-- **DROWN** (Decrypting RSA with Obsolete and Weakened eNcryption): Khai thác SSLv2 export-grade cipher. Nếu server hỗ trợ SSLv2, TLS kết nối mới cũng bị ảnh hưởng.
+- **Tài sản:** phiên TLS và thuật toán/protocol được hai endpoint thương lượng.
 
-## Code Example
+- **Actor:** legacy peer hoặc logic fallback trong fixture; proxy on-path chỉ tác động nếu điều khiển được fallback/negotiation ngoài TLS đã xác thực. [S3]
+
+- **Trust boundary:** TLS terminator Nginx/OpenSSL chấp nhận version/cipher từ ClientHello.
+
+- **Điều kiện cần:** endpoint còn bật protocol yếu hoặc fallback không được bảo vệ; certificate validation vẫn phải xét.
+
+- **Môi trường:** OpenSSL 3.x client/server container, TLS 1.0-1.3 fixture, packet log local.
+
+Handshake failure hay hỗ trợ legacy không tự chứng minh downgrade; phải chứng minh phiên hoàn tất ở mức yếu ngoài policy mong muốn. [S1]
+
+## 6. Cơ chế tấn công
+
+Peer/proxy làm hai endpoint thương lượng hoặc fallback xuống version/cipher dưới policy. Finding cần một handshake hoàn tất ở mức yếu, không chỉ danh sách cấu hình có chuỗi legacy. [S1]
+
+## 7. Kiểm thử trong lab được ủy quyền
+
+1. **Setup:** chạy TLS server disposable với cấu hình legacy/modern riêng và certificate CA lab.
+2. **Baseline:** client thương lượng TLS 1.2/1.3 theo policy hiện hành.
+3. **Thao tác:** cấu hình legacy client hoặc fallback fixture yêu cầu version/cipher cũ theo ma trận bounded; không giả định transparent proxy có thể sửa ClientHello mà handshake vẫn hợp lệ.
+4. **Expected result:** baseline lỗi hoàn tất phiên yếu; cấu hình sửa từ chối và vẫn cho phép client hiện hành.
+5. **Boundary:** kiểm tra SNI, ALPN, fallback và subdomain HSTS như vấn đề riêng.
+6. **Cleanup:** xóa key/certificate lab và dừng containers.
+
+## 8. Payload và phạm vi áp dụng
+
+Các block dưới đây được giữ để technical review.
+
+`static-verified` chỉ xác nhận cấu trúc và annotation đã qua gate tĩnh.
+
+Trạng thái này không chứng minh payload hoạt động trên mọi phiên bản.
+
+Trước khi chạy, phải đối chiếu context, điều kiện, encoding, expected result và risk.
+
+Payload mở rộng thuộc `cheatsheets/`; lesson chỉ giữ ví dụ cốt lõi.
+
+Trong lab, dùng hai endpoint pin version: baseline chỉ cho TLS 1.2/1.3; negative fixture cố ý bật legacy fallback. Xác nhận phiên bản/cipher đã thương lượng từ cả client và server log. Không dùng MitM trên mạng thật và không kết luận lỗ hổng chỉ vì server còn hỗ trợ TLS 1.2. [S3], [S4]
+
+## 9. Code dễ bị lỗi và code an toàn
+
 ```configuration
+# VULNERABLE BASELINE: legacy versions remain enabled
+# ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+
 # Secure TLS and HSTS configuration in Nginx
 server {
     listen 443 ssl http2;
-    server_name secure.example.com;
+    server_name secure.victim.lab.test;
 
     ssl_certificate /etc/ssl/certs/app.crt;
     ssl_certificate_key /etc/ssl/private/app.key;
 
     # Restrict to TLS 1.2 and 1.3 only
     ssl_protocols TLSv1.2 TLSv1.3;
-    
-    # Enforce secure modern ciphers only
+
+    # TLS 1.2 cipher allowlist for this pinned OpenSSL fixture
     ssl_ciphers 'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384';
     ssl_prefer_server_ciphers on;
 
-    # Enforce HTTP Strict Transport Security (HSTS)
-    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
+    # ssl_ciphers does not pin TLS 1.3 suites. Keep the reviewed OpenSSL 3.x
+    # defaults, or configure Ciphersuites through a supported ssl_conf_command
+    # only after compatibility tests. Verify the negotiated suite in CI. [S6]
+
+    # Enable includeSubDomains only after every subdomain is HTTPS-ready;
+    # HSTS preload is a separate operational decision and enrollment process.
+    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
 }
 ```
 
+## 10. Phát hiện
 
-## Xem thêm
+- Ghi negotiated protocol/cipher cho baseline và đường fallback; hỗ trợ legacy chưa tự chứng minh downgrade. [S3]
+
+- Review minimum version tại mọi TLS terminator và client fallback logic. [S3], [S4]
+
+- Thu handshake transcript và policy result; không tắt certificate validation ngoài case riêng.
+
+## 11. Phòng thủ
+
+### Kiểm soát bắt buộc
+
+- Tắt TLS 1.0/1.1 và primitive ngoài policy tại mọi endpoint/terminator. [S4]
+
+- Không tự xây fallback; dùng thư viện hiện hành có downgrade protection. [S3]
+
+### Defense-in-depth
+
+- Inventory client legacy trước khi nâng minimum version.
+
+- Alert khi negotiation xuống mức thấp hơn baseline mong đợi.
+
+## 12. Retest
+
+- **Positive:** client/server hiện hành thương lượng version/cipher trong policy.
+
+- **Negative:** legacy-only peer bị từ chối, không silently fallback.
+
+- **Boundary:** SNI, session resumption, alternate terminator và client khác.
+
+- **Telemetry:** lưu negotiated version/cipher và điểm áp policy.
+
+## 13. Sai lầm thường gặp
+
+- Gọi mọi hỗ trợ legacy là downgrade đã khai thác.
+
+- Kiểm tra một load balancer nhưng bỏ sót origin/sidecar.
+
+- Tắt certificate validation để làm test rồi suy rộng kết quả.
+
+- Mô tả TLS 1.3 cipher suite theo cấu trúc của TLS cũ.
+
+## 14. Tóm tắt và checklist
+
+- [ ] Root cause, hậu quả và kỹ thuật khai thác đã được tách riêng.
+- [ ] Actor, role/authentication, trust boundary, công nghệ và phiên bản đã rõ.
+- [ ] Payload có ID duy nhất, context, encoding, điều kiện, expected result, risk, validation và source.
+- [ ] Code dễ lỗi/an toàn dùng cùng framework, phiên bản và use case.
+- [ ] Kiểm soát bắt buộc không bị thay thế bằng defense-in-depth.
+- [ ] Positive, negative, boundary case và telemetry đã qua retest.
+- [ ] Claim nhạy cảm có source marker và mọi link chỉ nằm ở mục 16–17.
+- [ ] Cleanup hoàn tất; không còn secret, target thật, callback Internet hoặc dữ liệu khách hàng.
+
+## 15. Giải thích thuật ngữ
+
+- **Downgrade:** kết nối hoàn tất với version/primitive yếu hơn policy do fallback hoặc negotiation bị tác động. [S3]
+
+- **TLS negotiation:** handshake chọn version và tham số chung theo protocol. [S3]
+
+- **Minimum version:** ngưỡng protocol thấp nhất endpoint cho phép; TLS 1.0/1.1 đã bị deprecate. [S4]
+
+## 16. Bài liên quan và đọc thêm
+
 - [DNS Poisoning](../dns-poisoning/) — Xem thêm bài học về DNS Poisoning.
 
-## Nguồn tham khảo
-- **Nguồn tham khảo**: OWASP A02:2021-Cryptographic Failures, CWE-327 (Use of a Broken or Risky Cryptographic Algorithm)
+## 17. Tài liệu tham khảo
 
-## Giải thích thuật ngữ
-- **TLS (Transport Layer Security)**: Giao thức bảo mật giúp mã hóa thông tin truyền tải trên Internet, đảm bảo dữ liệu không bị đọc trộm hay sửa đổi trên đường đi.
-- **TLS Handshake**: Quá trình bắt tay TLS, là giai đoạn khởi đầu của một kết nối an toàn, nơi máy khách và máy chủ thương lượng phiên bản giao thức, xác thực chứng chỉ số và thiết lập các khóa mã hóa.
-- **Cipher Suite**: Bộ thuật toán mã hóa, bao gồm một tập hợp các quy tắc và thuật toán mật mã dùng để thiết lập kết nối an toàn (như thuật toán trao đổi khóa, thuật toán mã hóa dữ liệu, thuật toán kiểm tra tính toàn vẹn).
-- **Symmetric Encryption (Mã hóa đối xứng)**: Phương pháp mã hóa sử dụng duy nhất một khóa bí mật chung cho cả quá trình mã hóa (khóa dữ liệu) và giải mã (mở dữ liệu). Xử lý rất nhanh và hiệu quả với lượng dữ liệu lớn.
-- **Asymmetric Encryption (Mã hóa bất đối xứng)**: Phương pháp mã hóa sử dụng một cặp khóa liên kết với nhau: khóa công khai (Public Key - chia sẻ rộng rãi) để mã hóa và khóa bí mật (Private Key - giữ kín) để giải mã. Thường dùng trong giai đoạn xác thực và trao đổi khóa ban đầu.
-- **MitM (Man-in-the-Middle)**: Tấn công kẻ đứng giữa, là hình thức tấn công mà kẻ xấu bí mật can thiệp, nghe lén hoặc sửa đổi thông tin truyền tải giữa hai bên đang giao tiếp trực tiếp với nhau.
-- **HSTS (HTTP Strict Transport Security)**: Một chính sách bảo mật web buộc các trình duyệt web luôn sử dụng kết nối HTTPS an toàn thay vì HTTP thông thường, giúp chống lại các cuộc tấn công hạ cấp.
+- **[S1]** OWASP Top 10:2025. https://owasp.org/Top10/2025/ — phiên bản/trạng thái: bản hiện hành; truy cập: 2026-07-17.
+- **[S3]** RFC 8446 — The Transport Layer Security (TLS) Protocol Version 1.3. https://www.rfc-editor.org/rfc/rfc8446.html — phiên bản/ngày: August 2018; truy cập: 2026-07-17.
+- **[S4]** RFC 8996 — Deprecating TLS 1.0 and TLS 1.1. https://www.rfc-editor.org/rfc/rfc8996.html — phiên bản/ngày: March 2021; truy cập: 2026-07-17.
+- **[S6]** Nginx — ngx_http_ssl_module (`ssl_ciphers`, `ssl_conf_command`, `ssl_protocols`). https://nginx.org/en/docs/http/ngx_http_ssl_module.html — phiên bản/trạng thái: tài liệu hiện hành; truy cập: 2026-07-17.

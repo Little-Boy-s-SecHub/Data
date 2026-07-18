@@ -1,158 +1,219 @@
+---
+schema_version: 1
+id: WEB-A01-SSRF
+title: "Server-Side Request Forgery"
+slug: ssrf
+level: intermediate
+estimated_minutes: 50
+prerequisites:
+  - http-fundamentals
+  - authorized-security-testing
+  - authentication-vs-authorization
+owasp:
+  - A01:2025
+cwe:
+  - CWE-918
+content_status: technical-review
+payload_status: static-verified
+last_verified: null
+---
+
 # Server-Side Request Forgery
 
-> **CWE**: CWE-918 (Server-Side Request Forgery) | **Phân loại**: Server-Side Request Forgery
+> [!CAUTION]
+> Chỉ thực hành trên hệ thống bạn sở hữu hoặc có ủy quyền rõ ràng. Dùng dữ liệu giả, fixture có thể hủy và giới hạn tài nguyên; không gửi payload đến Internet hoặc mục tiêu thật.
 
-## Kiến thức Nền tảng
-Hãy tưởng tượng máy chủ web của bạn giống như một nhân viên hành chính ngồi trong văn phòng bảo mật của một tổng công ty. Văn phòng này nằm bên trong hàng rào bảo mật nghiêm ngặt. Người ngoài không thể tự ý đi vào các phòng ban nội bộ hay xem máy chủ cơ sở dữ liệu của công ty. Tuy nhiên, nhân viên hành chính này có một nhiệm vụ: "Nếu có ai gửi thư yêu cầu tải ảnh hoặc thông tin từ một địa chỉ web bên ngoài để đính kèm vào hồ sơ, nhân viên sẽ tự mình truy cập đường link đó, tải ảnh về và hiển thị lên màn hình".
+## 1. Mục tiêu học tập
 
-Mối nguy hiểm xuất hiện khi một vị khách xấu gửi một yêu cầu có nội dung: "Hãy tải ảnh tại địa chỉ: `http://localhost/admin` hoặc `http://192.168.1.100` (địa chỉ của máy chủ nội bộ)". Vì nhân viên hành chính này đang ngồi *bên trong* mạng nội bộ tin cậy, nên anh ta có thể dễ dàng đi đến các địa chỉ nội hạt này mà không bị tường lửa ngăn chặn (được gọi là bypass tường lửa). Anh ta ngoan ngoãn truy cập vào trang quản trị nội bộ hoặc máy chủ chứa dữ liệu nhạy cảm, lấy thông tin về và gửi ngược lại cho kẻ tấn công bên ngoài. Trong thế giới mạng, hành vi lừa máy chủ thực hiện các yêu cầu nội bộ hoặc tùy ý này được gọi là **SSRF** (Server-Side Request Forgery - Yêu cầu giả mạo từ phía máy chủ).
+Sau bài học, bạn có thể:
 
-Mối nguy hiểm này liên quan trực tiếp đến các địa chỉ **loopback/private IP** (IP vòng lặp hoặc IP nội bộ). Các dải địa chỉ IP riêng tư (như `10.0.0.0/8`, `192.168.0.0/16` theo định nghĩa RFC 1918) hoặc loopback (`127.0.0.1` / `localhost`) và IP metadata đám mây (`169.254.169.254`) chỉ được sử dụng cho mạng nội bộ phía sau tường lửa. Vì máy chủ nằm bên trong ranh giới mạng tin cậy này, server-side HTTP client sẽ gửi yêu cầu trực tiếp đến các tài nguyên nội bộ, bypass các hệ thống kiểm soát truy cập vòng ngoài. Kẻ tấn công lợi dụng việc này để quét cổng mạng, truy cập các trang quản trị cục bộ hoặc đánh cắp token metadata nhạy cảm của dịch vụ đám mây.
+- Giải thích Server-Side Request Forgery bằng root cause thay vì chỉ mô tả hậu quả.
+- Nhận diện trust boundary, tài sản, actor và điều kiện cần để lỗi có thể bị khai thác.
+- Thực hiện kiểm thử có kiểm soát trong lab local và phân biệt expected result với false positive.
+- Chọn kiểm soát gốc, triển khai bản sửa và retest bằng positive, negative và boundary case.
 
-```python
-# Safe HTTP client request resolving DNS and validating IP range to prevent SSRF
-import socket
-import ipaddress
-import urllib3
-from urllib.parse import urlparse
+## 2. Kiến thức cần có
 
-def is_safe_destination_ip(ip_str):
-    """
-    Checks if the resolved IP address is a public, globally-routable address.
-    """
-    try:
-        ip = ipaddress.ip_address(ip_str)
-        # Enforce that the target IP is not private, loopback, or link-local
-        return ip.is_global and not ip.is_private and not ip.is_loopback and not ip.is_link_local
-    except ValueError:
-        return False
+- URL parsing, DNS resolution và HTTP redirect.
 
-def make_safe_request(url):
-    # Parse URL to extract domain name
-    parsed_url = urlparse(url)
-    if parsed_url.scheme not in ('http', 'https'):
-        raise ValueError("Invalid URL scheme. Only HTTP and HTTPS are allowed.")
-        
-    hostname = parsed_url.hostname
-    if not hostname:
-        raise ValueError("Invalid hostname.")
-        
-    # Resolve the hostname to an IP address on the server side
-    try:
-        resolved_ip = socket.gethostbyname(hostname)
-    except socket.gaierror:
-        raise ValueError("DNS resolution failed.")
-        
-    # Verify that the resolved IP address is safe (public)
-    if not is_safe_destination_ip(resolved_ip):
-        raise ValueError("Forbidden: Target IP belongs to a restricted private/loopback range.")
-        
-    # Enforce request using urllib3 pool, disabling redirects to prevent redirection bypass
-    http = urllib3.PoolManager()
-    response = http.request('GET', url, redirect=False, timeout=3.0)
-    return response.data
+- Private, loopback, link-local IPv4/IPv6 và egress policy.
+
+- Hành vi DNS/cache của HTTP client được pin trong fixture.
+
+## 3. Kiến thức nền tảng
+
+Hãy tưởng tượng máy chủ web của bạn giống như một nhân viên hành chính ngồi trong văn phòng bảo mật của một tổng công ty. Văn phòng này nằm bên trong hàng rào bảo mật nghiêm ngặt. Người ngoài không thể tự ý đi vào các phòng ban nội bộ hay xem máy chủ cơ sở dữ liệu của công ty. Tuy nhiên, nhân viên hành chính này có một nhiệm vụ: "Nếu có ai gửi thư yêu cầu tải ảnh hoặc thông tin từ một địa chỉ web bên ngoài để đính kèm vào hồ sơ, nhân viên sẽ tự mình truy cập đường link đó, tải ảnh về và hiển thị lên màn hình". [S3]
+
+Mối nguy hiểm xuất hiện khi một vị khách xấu gửi một yêu cầu có nội dung: "Hãy tải ảnh tại địa chỉ: `http://localhost/admin` hoặc `http://192.168.1.100` (địa chỉ của máy chủ nội bộ)". Vì nhân viên hành chính này đang ngồi *bên trong* mạng nội bộ tin cậy, nên anh ta có thể dễ dàng đi đến các địa chỉ nội hạt này mà không bị tường lửa ngăn chặn (được gọi là bypass tường lửa). Anh ta ngoan ngoãn truy cập vào trang quản trị nội bộ hoặc máy chủ chứa dữ liệu nhạy cảm, lấy thông tin về và gửi ngược lại cho kẻ tấn công bên ngoài. Trong thế giới mạng, hành vi lừa máy chủ thực hiện các yêu cầu nội bộ hoặc tùy ý này được gọi là **SSRF** (Server-Side Request Forgery - Yêu cầu giả mạo từ phía máy chủ). [S3]
+
+Mối nguy hiểm này liên quan trực tiếp đến các địa chỉ **loopback/private IP** (IP vòng lặp hoặc IP nội bộ). Các dải địa chỉ IP riêng tư (như `10.0.0.0/8`, `192.168.0.0/16` theo định nghĩa RFC 1918), loopback (`127.0.0.1` / `localhost`) và dải link-local dành cho dịch vụ metadata đám mây chỉ được sử dụng phía sau ranh giới mạng. Vì máy chủ nằm bên trong ranh giới tin cậy này, server-side HTTP client có thể gửi yêu cầu trực tiếp đến tài nguyên nội bộ, bỏ qua kiểm soát truy cập vòng ngoài. Kẻ tấn công lợi dụng việc này để quét cổng, truy cập trang quản trị cục bộ hoặc đánh cắp token metadata nhạy cảm. [S3]
+
+Chỉ phân giải hostname một lần để kiểm tra IP rồi để HTTP client phân giải lại khi kết nối **không** ngăn DNS rebinding. Kiểm soát an toàn hơn là loại URL tùy ý khỏi input khi có thể; nếu business bắt buộc fetch URL, dùng egress fetch service kiểm tra mọi A/AAAA record, pin destination tại kết nối thực tế, tắt hoặc revalidate từng redirect, giới hạn scheme/port/response và áp egress ACL độc lập. [S3]
+
+## 4. Mô tả và nguyên nhân gốc
+
+Lỗ hổng SSRF xảy ra khi ứng dụng cho phép người dùng truyền vào một địa chỉ URL và máy chủ sẽ tự động gửi yêu cầu đến URL đó mà không có bất kỳ bộ lọc hoặc bước xác thực an toàn nào. [S3]
+
+Lỗ hổng này cực kỳ nguy hiểm bởi vì nó biến máy chủ của bạn thành một "nội gián" hoặc một cầu nối trung gian (proxy) để kẻ tấn công khám phá và tấn công mạng nội bộ của bạn. Kẻ xấu có thể lợi dụng điều này để quét các cổng mạng đang mở trong hệ thống nội bộ, truy cập các cơ sở dữ liệu không công khai, hoặc nghiêm trọng hơn là đánh cắp mã khóa truy cập (metadata tokens) từ các dịch vụ điện toán đám mây (như AWS, Google Cloud, Azure). Điều này có thể dẫn đến việc kẻ tấn công chiếm toàn quyền kiểm soát toàn bộ cơ sở hạ tầng đám mây của doanh nghiệp. [S3]
+
+
+## 5. Mô hình đe dọa và điều kiện khai thác
+
+- **Tài sản:** mock metadata và dịch vụ nội bộ chỉ nghe trên loopback/container network.
+
+- **Actor:** client điều khiển URL của chức năng fetch; authentication phụ thuộc route fixture.
+
+- **Trust boundary:** Python requests thực hiện DNS, redirect và kết nối từ server.
+
+- **Điều kiện cần:** URL tới được sink; allowlist/egress policy thiếu; response hoặc side effect quan sát được.
+
+- **Môi trường:** Python 3.12, mock metadata, DNS fixture IPv4/IPv6, outbound Internet bị chặn.
+
+Không dùng endpoint metadata thật: lab phải ánh xạ endpoint metadata giả và xác nhận egress bằng log mock. [S1]
+
+## 6. Cơ chế tấn công
+
+Fetcher phía server parse URL, resolve DNS, theo redirect và kết nối bằng network authority của server. Nếu validation/egress không áp lại ở từng hop, URL client có thể chạm mock internal/metadata service. [S1]
+
+## 7. Kiểm thử trong lab được ủy quyền
+
+1. **Setup:** chạy fetcher Python và mock HTTP/DNS trong container network; chặn mọi egress khác.
+2. **Baseline:** fetch URL allowlist public-fixture thành công.
+3. **Thao tác:** thử loopback, IP literal, redirect tới mock metadata và IPv6 bằng danh sách bounded.
+4. **Expected result:** bản lỗi chạm mock internal log; bản sửa chặn trước kết nối hoặc sau mỗi redirect.
+5. **Boundary:** kiểm tra DNS đổi kết quả, userinfo, mixed encoding và response size/timeout cap.
+6. **Cleanup:** xóa callback log, dừng container và xác nhận egress counter ngoài fixture bằng 0.
+
+## 8. Payload và phạm vi áp dụng
+
+`static-verified` chỉ xác nhận URL fixture và điều kiện an toàn đã được mô tả đầy đủ. Host `.test` dưới đây phải được ánh xạ tới mock service trong container network cô lập; lab phải chặn toàn bộ outbound Internet. [S3]
+
+<!-- payload-id: WEB-A01-SSRF-001 -->
+<!-- context: Python 3.12 link-preview fixture; ssrf-mock.test resolves only inside an isolated container network; destination validation model [S3] -->
+<!-- prerequisites: local mock service listens on port 9080; outbound Internet is denied; application accepts an http URL -->
+<!-- encoding: ASCII URL with percent-encoding applied by the HTTP client when required -->
+<!-- expected-result: vulnerable fixture reaches the mock and its log records marker SSRF_LOCAL_001; secure fixture rejects the destination before connecting -->
+<!-- risk: non-destructive -->
+<!-- runnable: false -->
+<!-- validation: static-verified -->
+<!-- sources: S3 -->
+<!-- last-verified: 2026-07-17 -->
+```text
+http://ssrf-mock.test:9080/health?marker=SSRF_LOCAL_001
 ```
 
-## Mô tả lỗ hổng
-Lỗ hổng SSRF xảy ra khi ứng dụng cho phép người dùng truyền vào một địa chỉ URL và máy chủ sẽ tự động gửi yêu cầu đến URL đó mà không có bất kỳ bộ lọc hoặc bước xác thực an toàn nào. 
+Không thay host fixture bằng địa chỉ nội bộ, link-local hoặc endpoint cloud thật. Chỉ log tại mock service mới chứng minh server đã thực hiện request; nội dung phản hồi khác biệt đơn lẻ chưa đủ kết luận SSRF. [S3]
 
-Lỗ hổng này cực kỳ nguy hiểm bởi vì nó biến máy chủ của bạn thành một "nội gián" hoặc một cầu nối trung gian (proxy) để kẻ tấn công khám phá và tấn công mạng nội bộ của bạn. Kẻ xấu có thể lợi dụng điều này để quét các cổng mạng đang mở trong hệ thống nội bộ, truy cập các cơ sở dữ liệu không công khai, hoặc nghiêm trọng hơn là đánh cắp mã khóa truy cập (metadata tokens) từ các dịch vụ điện toán đám mây (như AWS, Google Cloud, Azure). Điều này có thể dẫn đến việc kẻ tấn công chiếm toàn quyền kiểm soát toàn bộ cơ sở hạ tầng đám mây của doanh nghiệp.
+## 9. Code dễ bị lỗi và code an toàn
 
-## Cơ chế tấn công
-Kẻ tấn công tận dụng các chức năng như xem trước liên kết (link preview) bằng cách cung cấp một URL trỏ đến các địa chỉ IP riêng tư nội bộ (như `http://localhost/admin` hoặc `http://192.168.1.1`) hoặc địa chỉ metadata của môi trường đám mây (ví dụ AWS metadata IP: `http://169.254.169.254`). Vì máy chủ nằm bên trong hàng rào bảo mật và có quyền truy cập các tài nguyên nội hạt, nó sẽ gửi yêu cầu và có thể trả lại nội dung nhạy cảm cho kẻ tấn công trong phản hồi hoặc thông báo lỗi.
-
-## Biện pháp phòng thủ
-- **Tóm tắt**: Ngăn chặn SSRF bằng cách sử dụng danh sách trắng (allowlist), phân giải tên miền sang IP và kiểm tra IP riêng tư trước khi gửi yêu cầu, vô hiệu hóa redirect và cô lập mạng của ứng dụng.
-- **Các bước chi tiết**:
-  - Triển khai danh sách trắng (allowlist) nghiêm ngặt cho các tên miền/IP đích thay vì sử dụng danh sách đen (blocklist).
-  - Thực hiện phân giải tên miền thành địa chỉ IP ở phía máy chủ và kiểm tra IP đó có thuộc các dải IP riêng tư (RFC 1918, RFC 6598, loopback, link-local) trước khi tạo kết nối để chống DNS Rebinding.
-  - Vô hiệu hóa việc tự động chuyển hướng HTTP (redirections) hoặc kiểm tra kỹ URL đích của chuyển hướng trước khi theo dấu.
-  - Cô lập máy chủ gửi yêu cầu trong một phân đoạn mạng riêng biệt hoặc VPC với các quy tắc egress tường lửa tối thiểu.
-  - Sử dụng một HTTP client chuyên dụng được cấu hình giới hạn thời gian chờ (timeout) ngắn, lượng dữ liệu tối đa nhỏ để ngăn chặn cạn kiệt tài nguyên (DoS).
-
-## Code Example
 ```python
-import socket
-import ipaddress
-import urllib3
-from urllib.parse import urlparse
+# === VULNERABLE CODE ===
+import re
+from urllib.parse import quote
 
-def is_safe_ip(ip_str):
-    try:
-        ip = ipaddress.ip_address(ip_str)
-        return ip.is_global and not ip.is_private and not ip.is_loopback and not ip.is_link_local
-    except ValueError:
-        return False
+import requests
 
-def secure_request(url, max_bytes=2*1024*1024):
-    parsed = urlparse(url)
-    if parsed.scheme not in ('http', 'https'):
-        raise ValueError("Only HTTP and HTTPS schemes are allowed")
-        
-    hostname = parsed.hostname
-    if not hostname:
-        raise ValueError("Invalid URL")
-        
-    # DNS Resolution
-    try:
-        ip_addr = socket.gethostbyname(hostname)
-    except socket.gaierror:
-        raise ValueError("DNS resolution failed")
-        
-    if not is_safe_ip(ip_addr):
-        raise ValueError("Target IP is not in a safe public range")
-        
-    port = parsed.port or (443 if parsed.scheme == 'https' else 80)
-    path = parsed.path or '/'
-    if parsed.query:
-        path += f"?{parsed.query}"
-        
-    # Pin the connection using resolved IP while asserting the hostname for SSL
-    pool_opts = {}
-    if parsed.scheme == 'https':
-        try:
-            # If the hostname is an IP, do not set server_hostname
-            ipaddress.ip_address(hostname)
-        except ValueError:
-            pool_opts['server_hostname'] = hostname  # For SSL SNI
-        
-    pool = urllib3.PoolManager(**pool_opts)
-    target_url = f"{parsed.scheme}://{ip_addr}:{port}{path}"
-    
-    headers = {"Host": hostname}
-    # Stream content to prevent memory exhaustion / DoS attacks
-    response = pool.request(
-        'GET',
-        target_url,
-        headers=headers,
-        redirect=False,
-        timeout=5.0,
-        preload_content=False
+def fetch_preview_unsafe(user_url):
+    # BAD: the caller controls the destination and redirect chain
+    return requests.get(user_url, timeout=5).content
+
+
+# === SECURE CODE ===
+# Users choose a server-side identifier, not a URL. The dedicated fetcher
+# enforces DNS/IP policy at connect time and revalidates every redirect hop.
+TRUSTED_DESTINATIONS = {
+    "public-avatar-cdn": "https://assets.victim.lab.test:8443",
+}
+
+def fetch_preview(destination_id, object_id, egress_fetcher):
+    base_url = TRUSTED_DESTINATIONS.get(destination_id)
+    if base_url is None or re.fullmatch(r"[A-Za-z0-9_-]{1,64}", object_id) is None:
+        raise ValueError("Unsupported destination or object identifier")
+
+    # The client selects one opaque identifier, not URL path/query syntax.
+    object_path = "/avatars/" + quote(object_id, safe="") + ".png"
+
+    return egress_fetcher.fetch(
+        base_url=base_url,
+        path=object_path,
+        methods={"GET"},
+        schemes={"https"},
+        ports={8443},
+        follow_redirects=False,
+        max_response_bytes=2 * 1024 * 1024,
+        connect_timeout_seconds=2,
+        total_timeout_seconds=5,
     )
-    
-    try:
-        buffer = bytearray()
-        for chunk in response.stream(amt=65536):
-            if len(buffer) + len(chunk) > max_bytes:
-                raise ValueError("Response body size exceeds the maximum limit")
-            buffer.extend(chunk)
-        return buffer.decode('utf-8', errors='replace')
-    finally:
-        response.release_conn()
 ```
 
-## Xem thêm
+`egress_fetcher` là security boundary riêng, không phải wrapper chỉ gọi lại hostname bằng HTTP client thông thường. Regression test phải bao phủ IPv4/IPv6, mixed records, DNS rebinding và redirect sang loopback/private/link-local/metadata. [S3]
+
+## 10. Phát hiện
+
+- Gửi URL tới mock public và mock internal; xác nhận socket peer cuối cùng cùng redirect chain. [S3]
+
+- Review parse, resolve, connect, redirect và proxy behavior của server-side client. [S3]
+
+- Log normalized destination, resolved IP, connected peer và redirect hop; không log response secret.
+
+## 11. Phòng thủ
+
+### Kiểm soát bắt buộc
+
+- Allowlist đích/protocol theo business need; resolve và kiểm tra mọi IP trước connect, kể cả mỗi redirect. [S3]
+
+- Ràng buộc socket với đích đã kiểm tra hoặc xác minh connected peer để tránh check-then-connect/DNS rebinding. [S3]
+
+### Defense-in-depth
+
+- Chặn egress tới private/link-local và metadata ở network layer.
+
+- Giới hạn timeout, response size và redirect count.
+
+## 12. Retest
+
+- **Positive:** URL allowlisted tới mock public vẫn hoạt động.
+
+- **Negative:** loopback, private, link-local và scheme ngoài policy bị chặn.
+
+- **Boundary:** IPv6, decimal/hex IP, redirect chain và DNS answer thay đổi.
+
+- **Telemetry:** xác nhận resolved IP, socket peer và egress counter.
+
+## 13. Sai lầm thường gặp
+
+- Validate hostname một lần rồi cho client tự follow redirect.
+
+- Chỉ chặn IPv4 dạng dấu chấm.
+
+- Dùng regex URL thay parser chuẩn.
+
+- Cho rằng network egress/WAF thay thế allowlist ở application.
+
+## 14. Tóm tắt và checklist
+
+- [ ] Root cause, hậu quả và kỹ thuật khai thác đã được tách riêng.
+- [ ] Actor, role/authentication, trust boundary, công nghệ và phiên bản đã rõ.
+- [ ] Payload có ID duy nhất, context, encoding, điều kiện, expected result, risk, validation và source.
+- [ ] Code dễ lỗi/an toàn dùng cùng framework, phiên bản và use case.
+- [ ] Kiểm soát bắt buộc không bị thay thế bằng defense-in-depth.
+- [ ] Positive, negative, boundary case và telemetry đã qua retest.
+- [ ] Claim nhạy cảm có source marker và mọi link chỉ nằm ở mục 16–17.
+- [ ] Cleanup hoàn tất; không còn secret, target thật, callback Internet hoặc dữ liệu khách hàng.
+
+## 15. Giải thích thuật ngữ
+
+- **SSRF:** input không tin cậy khiến server gửi request tới đích ngoài policy ứng dụng. [S3]
+
+- **Loopback/link-local:** address scope nội bộ không nên được URL fetcher công khai truy cập mặc định. [S3]
+
+- **DNS rebinding:** DNS answer thay đổi giữa bước kiểm tra và kết nối, phá check-then-connect. [S3]
+
+## 16. Bài liên quan và đọc thêm
+
 - [XML External Entities](../../05-injection/xxe/) — Lỗ hổng XXE có thể được sử dụng để thực hiện các yêu cầu mạng SSRF trực tiếp từ máy chủ phân tích XML.
 
-## Nguồn tham khảo
-- **Nguồn tham khảo**: OWASP SSRF Prevention Cheat Sheet, PortSwigger, CWE-918
+## 17. Tài liệu tham khảo
 
-## Giải thích thuật ngữ
-- **Server-Side Request Forgery (SSRF)**: Lỗ hổng giả mạo yêu cầu từ phía máy chủ, xảy ra khi ứng dụng gửi một yêu cầu mạng đến một địa chỉ do kẻ tấn công chỉ định.
-- **Server-Side HTTP Client**: Công cụ hoặc thư viện phần mềm chạy trên máy chủ được sử dụng để gửi các yêu cầu HTTP/HTTPS sang các máy chủ khác.
-- **Loopback IP / Localhost**: Địa chỉ IP vòng lặp (thường là `127.0.0.1` hoặc tên miền `localhost`) dùng để máy tính tự kết nối và giao tiếp với chính nó.
-- **Private IP (IP nội bộ)**: Các dải địa chỉ IP (như `192.168.x.x` hoặc `10.x.x.x`) chỉ được sử dụng trong mạng nội bộ phía sau tường lửa và không thể định tuyến trực tiếp từ internet công cộng.
-- **Metadata Service**: Dịch vụ cung cấp thông tin cấu hình và mã khóa truy cập của máy chủ ảo trong môi trường điện toán đám mây (thường nằm ở địa chỉ IP đặc biệt `169.254.169.254`).
-- **DNS Rebinding**: Kỹ thuật tấn công lừa máy chủ gửi yêu cầu đến một địa chỉ IP nội bộ an toàn bằng cách thay đổi địa chỉ IP phân giải của tên miền đích ngay giữa hai lần truy cập liên tiếp.
-- **VPC (Virtual Private Cloud)**: Mạng riêng ảo được cô lập trong môi trường điện toán đám mây để bảo vệ các tài nguyên hệ thống.
-- **Egress Firewall Rules**: Quy tắc tường lửa kiểm soát lưu lượng dữ liệu đi ra ngoài từ hệ thống nội bộ.
+- **[S1]** OWASP Top 10:2025. https://owasp.org/Top10/2025/ — phiên bản/trạng thái: bản hiện hành; truy cập: 2026-07-17.
+- **[S3]** OWASP Server-Side Request Forgery Prevention Cheat Sheet. https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html — phiên bản/trạng thái: bản hiện hành; truy cập: 2026-07-17.

@@ -1,7 +1,7 @@
 # SecHub Data — Web & Application Security Curriculum
 
 <p align="center">
-  <strong>📚 83 lessons · 11 OWASP categories · English & Vietnamese</strong>
+  <strong>83 lessons · 11 OWASP categories · English & Vietnamese</strong>
 </p>
 
 > The central knowledge base for the [SecHub Learning Platform](https://sechub-academy.vercel.app/). Contains all theoretical lessons, vulnerability write-ups, and cheat sheets powering the platform's learning materials.
@@ -11,13 +11,13 @@
 
 ---
 
-## 📖 Content Structure
+## Content Structure
 
 Content is organized by language and vulnerability category, following the OWASP classification:
 
 ```
 Data/
-├── eng/                                    # 🇬🇧 English Content
+├── eng/                                    # English Content
 │   ├── 01-broken-access-control/
 │   ├── 02-security-misconfiguration/
 │   ├── 03-supply-chain/
@@ -30,9 +30,9 @@ Data/
 │   ├── 10-exceptional-conditions/
 │   ├── 11-api-security/
 │   ├── README.md
-│   └── security_cheatsheet.md              # Consolidated cheat sheet
+│   └── security_cheatsheet.md
 │
-└── vietnam/                                # 🇻🇳 Vietnamese Content
+└── vietnam/                                # Vietnamese Content
     ├── 01-broken-access-control/
     ├── ...same structure as eng...
     ├── README.md
@@ -57,34 +57,45 @@ Data/
 
 ---
 
-## 🔄 How This Repo Powers the Platform
+## How This Repo Powers the Platform
 
 ```
 This Repository (Data/)            SecHub Backend
 ┌─────────────────────┐           ┌──────────────────┐
-│  Markdown lessons   │──sync──▶  │ SyncController   │
+│  Markdown lessons   │──sync──>  │ SyncController   │
 │  updated via PR     │           │ GithubLessonData │
 │                     │           │ Service           │
 └─────────────────────┘           └────────┬─────────┘
                                            │
-                                           ▼
+                                           v
                                   ┌──────────────────┐
                                   │   PostgreSQL DB   │
                                   │  (lessons table)  │
                                   └────────┬─────────┘
                                            │
-                                           ▼
+                                           v
                                   ┌──────────────────┐
                                   │   Frontend UI     │
                                   │  /learning page   │
                                   └──────────────────┘
 ```
 
-The SecHub backend's `SyncController` and `GithubLessonDataService` periodically pull from the `main` branch of this repository. When you merge a PR that adds or updates a lesson here, the changes automatically propagate to the live platform's database — **no backend redeployment needed**.
+The SecHub backend's `SyncController` and `GithubLessonDataService` periodically pull from the `main` branch of this repository. When you merge a PR here, the changes automatically propagate to the live platform — **no backend redeployment needed**.
 
 ---
 
-## 📝 Lesson Format
+## How Content Connects to AI Labs
+
+Each lesson in this repository teaches the theory. The **SecHub application** then uses the lesson's vulnerability category to:
+
+1. **Generate preset labs** — AI creates a vulnerable app matching the category (e.g., `05-injection` leads to a SQL injection lab).
+2. **Power the Custom Lab Builder** — Users can reference a lesson and ask the AI to generate a custom scenario with specific constraints (e.g., *"Make it a blind SQLi with PostgreSQL and a WAF that blocks `UNION`"*).
+
+This creates a **read > practice > master** loop where theory and hands-on always stay connected.
+
+---
+
+## Lesson Format
 
 Each lesson follows a consistent pedagogical structure:
 
@@ -118,39 +129,7 @@ Cited technical sources (CVEs, RFCs, official docs).
 
 ---
 
-## ✍️ Contributing
-
-We welcome contributions from security researchers and educators!
-
-### Guidelines
-
-1. **Markdown only** — All lessons must be `.md` files.
-2. **Follow the structure** — Use the lesson format template above.
-3. **Both languages** — If you add a lesson in `eng/`, please also provide the Vietnamese version in `vietnam/` (or vice versa). Partial translations are accepted.
-4. **Cite your sources** — Attach reference links for all technical claims.
-5. **Payload safety** — Every payload must include context, conditions, encoding, expected result, and risk level.
-6. **No real targets** — All examples must use localhost, lab environments, or fictional targets.
-
-### Quick Start
-
-```bash
-git clone https://github.com/Little-Boy-s-SecHub/Data.git
-cd Data
-
-# Create a new lesson
-mkdir -p eng/05-injection/new-lesson
-echo "# New Injection Lesson" > eng/05-injection/new-lesson/README.md
-
-# Submit a PR
-git checkout -b lesson/new-injection-technique
-git add .
-git commit -m "Add lesson: new injection technique"
-git push origin lesson/new-injection-technique
-```
-
----
-
-## 📊 Content Quality Standards
+## Content Quality Standards
 
 | Criterion | Requirement |
 |---|---|
@@ -162,7 +141,7 @@ git push origin lesson/new-injection-technique
 
 ---
 
-## 🔗 Related Repositories
+## Related Repositories
 
 | Repository | Purpose |
 |---|---|
